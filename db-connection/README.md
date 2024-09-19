@@ -48,6 +48,7 @@ stringData:
   databaseService: mariadb-service
   databasePort: '3306'
   databaseName: $database
+  databaseGeneration: update
  ```
 
 # (Optional) Configure DB TLS
