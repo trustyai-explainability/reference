@@ -50,6 +50,30 @@ stringData:
   databaseName: $database
  ```
 
+# (Optional) Configure DB TLS
+If you want to use a TLS connection between TrustyAI and the database, create a TrustyAI service database TLS secret that uses the same certificates that you want to use for the database.
+
+1) Create a YAML file to contain your TLS secret and add the following code:
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: <service_name>-db-tls
+type: kubernetes.io/tls
+data:
+  tls.crt: |
+    <TLS CERTIFICATE>
+
+  tls.key: |
+    <TLS KEY>
+```
+Save the file with the file name `<service_name>-db-tls.yaml`. For example, if your service name is trustyai-service, save the file as `trustyai-service-db-tls.yaml`.
+
+Apply the YAML file in the model namespace:
+
+`oc apply -f <service_name>-db-tls.yaml -n <project_name>`
+
+
 # Deploying TrustyAI:
 `oc apply -f trustyai-cr.yaml`
 
