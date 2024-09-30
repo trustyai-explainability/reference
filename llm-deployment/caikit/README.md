@@ -1,4 +1,4 @@
-## Deploying a Guardrails Detector
+## Deploying a Guardrails Generator
 
 ### Convert model to Caikit format
 1. Fork and clone this repository
@@ -7,23 +7,9 @@
     ```
     cd reference/llm-deployment/caikit/
     ```
-3. Bootstrap your LLM using the Caikit-NLP SequenceClassification module
+3. Bootstrap your LLM using the Caikit-NLP TextGeneration module
     ```
     python bootstrap_model.py -m=<model_name_or_path> -o=<output_path>
-    ```
-
-### Setup MinIO Storage
-1. Create new namespace `minio`
-    ```
-    MINIO_NS=minio
-    oc new-project $MINIO_NS
-    ```
-
-2. Apply MinIO files to `minio` namespace
-    ```
-    oc apply -f minio.yaml -n ${MINIO_NS}
-    oc apply -f minio-secret.yaml -n ${MINIO_NS}
-    oc apply -f minio-serviceaccount.yaml -n ${MINIO_NS}
     ```
 
 ### Deploy LLM with Caikit Standalone Serving Runtime
@@ -38,15 +24,18 @@
     oc apply -f caikit-servingruntime.yaml -n ${TEST_NS}
     ```
 
-3. Deploy the MinIO data connection and service account
+3. Replace <MODEL_NAMESPACE> in `minio-secret.yaml` with the name of your test namespace
+
+4. Deploy the MinIO data connection and service account
     ```
+    oc apply -f minio.yaml -n ${TEST-NS}
     oc apply -f minio-secret.yaml -n ${TEST_NS}
     oc create -f minio-serviceaccount.yaml -n ${TEST_NS}
     ```
 
 4. Deploy the inference service
     ```
-    oc apply -f caikit-isvc.yaml
+    oc apply -f caikit-isvc.yaml -n ${TEST-NS}
     ```
 
 5. Sanity check to make sure the inference service's `READY` state is `True`
@@ -61,7 +50,7 @@
     MODEL_ID=""granite-hap-caikit"
 
     response = requests.post(
-        ISVC_URL + "/api/v1/task/text-classification",
+        ISVC_URL + "/api/v1/task/text-generation",
         json={
             "model_id": MODEL_ID,
             "inputs": TEXT

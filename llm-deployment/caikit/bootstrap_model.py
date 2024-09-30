@@ -1,5 +1,5 @@
 import argparse
-from caikit_nlp.modules.text_classification import SequenceClassification
+from caikit_nlp.modules.text_generation import TextGeneration
 
 def _parse_args():
     parser = argparse.ArgumentParser(
@@ -20,4 +20,4 @@ if __name__ == "__main__":
     model_id, output_model_dir = _parse_args()
     print("MODEL NAME OR PATH: ", model_id)
     print("OUTPUT PATH: ", output_model_dir)
-    SequenceClassification.bootstrap(model_id).save(output_model_dir)
+    TextGeneration.bootstrap(model_id).save(output_model_dir)
