@@ -1,5 +1,8 @@
 # LM-Eval For ODH-vLLM Models
 
+## Install ODH
+Until LMEval is merged onto main, you'll need to use a devflag to get access to LM-Eval. A DSC has been provided [here](dsc.yaml).
+
 ## Deploy Model
 Follow the instructions in [the vLLLM deployment guide](../llm-deployment/vllm/README.md).
 
