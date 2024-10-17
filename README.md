@@ -17,6 +17,8 @@ maintained. For an up-to-date reference source on TrustyAI, please see the [Trus
 |     ├── caikit
 |     └── vllm
 |
+├── lm-eval
+| 
 ├── LICENSE
 |
 └── README.md <- You are here
