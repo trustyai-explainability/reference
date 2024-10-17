@@ -1,3 +1,4 @@
+# This is the model puller image that serves as the initContainer for the minio pod.
 FROM python:3.11-slim
 
 RUN python -m venv /tmp/venv &&\

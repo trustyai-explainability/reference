@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: minio
+  name: minio-granite
 spec:
   ports:
     - name: minio-client-port
@@ -9,7 +9,7 @@ spec:
       protocol: TCP
       targetPort: 9000
   selector:
-    app: minio
+    app: minio-granite
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -27,20 +27,20 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: llm-container-deployment # <--- change this
+  name: granite-minio-container # <--- change this
 labels:
-    app: minio # <--- change this to match label on the pod
+    app: minio-granite # <--- change this to match label on the pod
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: minio  # <--- change this to match label on the pod
+      app: minio-granite  # <--- change this to match label on the pod
   template: # => from here down copy and paste the pods metadata: and spec: sections
     metadata:
       labels:
-        app: minio
+        app: minio-granite
         maistra.io/expose-route: 'true'
-      name: minio
+      name: minio-granite
     spec:
       volumes:
       - name: model-volume
@@ -55,8 +55,8 @@ spec:
             - bash
             - -c
             - |
-              # model="ibm-granite/granite-7b-base"
-              model="microsoft/Phi-3-mini-4k-instruct"
+              model="ibm-granite/granite-7b-instruct"
+              # model="microsoft/Phi-3-mini-4k-instruct"
               echo "starting download"
               /tmp/venv/bin/huggingface-cli download $model --local-dir /mnt/models/llms/$(basename $model)
               echo "Done!"
@@ -89,81 +89,21 @@ spec:
             - mountPath: "/models/"
               name: model-volume
 ---
-#apiVersion: v1
-#kind: Pod
-#metadata:
-#  labels:
-#    app: minio
-#    maistra.io/expose-route: 'true'
-#  annotations:
-#    sidecar.istio.io/inject: 'true'
-#  name: minio
-#spec:
-#  volumes:
-#  - name: model-volume
-#    persistentVolumeClaim:
-#      claimName: vllm-models-claim
-#  restartPolicy: OnFailure # run once then exit
-#  initContainers:
-#    - name: download-model
-#      image: quay.io/rgeada/llm_downloader:latest
-#      securityContext:
-#        fsGroup: 1001
-#        allowPrivilegeEscalation: true
-#        runAsUser: 0
-#      command:
-#        - bash
-#        - -c
-#        - |
-#          # model="ibm-granite/granite-7b-base"
-#          model="microsoft/Phi-3-mini-4k-instruct"
-#          echo "starting download"
-#          /tmp/venv/bin/huggingface-cli download $model --local-dir /mnt/models/llms/$(basename $model)
-#          echo "Done!"
-#      resources:
-#        limits:
-#          memory: "2Gi"
-#          cpu: "2"
-#      volumeMounts:
-#        - mountPath: "/mnt/models/"
-#          name: model-volume
-#  containers:
-#    - args:
-#        - server
-#        - /models
-#      env:
-#        - name: MINIO_ACCESS_KEY
-#          value:  THEACCESSKEY
-#        - name: MINIO_SECRET_KEY
-#          value: THESECRETKEY
-#      image: quay.io/trustyai/modelmesh-minio-examples:latest
-#      name: minio
-#      securityContext:
-#        allowPrivilegeEscalation: false
-#        capabilities:
-#          drop:
-#            - ALL
-#        seccompProfile:
-#          type: RuntimeDefault
-#      volumeMounts:
-#        - mountPath: "/models/"
-#          name: model-volume
-#---
 apiVersion: v1
 kind: Secret
 metadata:
-  name: aws-connection-minio-data-connection
+  name: aws-connection-granite-data-connection
   labels:
     opendatahub.io/dashboard: 'true'
     opendatahub.io/managed: 'true'
   annotations:
     opendatahub.io/connection-type: s3
-    openshift.io/display-name: Minio Data Connection
+    openshift.io/display-name: Minio Data Connection - Granite
 data:
   AWS_ACCESS_KEY_ID: VEhFQUNDRVNTS0VZ
   AWS_DEFAULT_REGION: dXMtc291dGg=
   AWS_S3_BUCKET: bGxtcw==
-  AWS_S3_ENDPOINT: aHR0cDovL21pbmlvOjkwMDA=
+  AWS_S3_ENDPOINT: aHR0cDovL21pbmlvLWdyYW5pdGU6OTAwMA==
   AWS_SECRET_ACCESS_KEY: VEhFU0VDUkVUS0VZ
 type: Opaque
 ---

@@ -1,0 +1,28 @@
+apiVersion: trustyai.opendatahub.io/v1alpha1
+kind: LMEvalJob
+metadata:
+  name: mmlujob
+spec:
+  model: local-completions
+  taskList:
+    taskNames:
+      - mmlu
+  logSamples: true
+  modelArgs:
+    - name: model
+      value: granite
+    - name: base_url
+      value: https://granite-predictor-lm-eval.apps.rosa.trustyai-rob.g9ax.p3.openshiftapps.com/v1/completions
+    - name: num_concurrent
+      value:  "1"
+    - name: max_retries
+      value:  "3"
+    - name: tokenized_requests
+      value: "False"
+    - name: tokenizer
+      value: ibm-granite/granite-7b-instruct
+  envSecrets:
+    - env: OPENAI_TOKEN
+      secretRef:
+        name: user-one-token-gmfkz
+        key: token
