@@ -12,7 +12,7 @@ spec:
     - name: model
       value: granite
     - name: base_url
-      value: https://granite-predictor-lm-eval.apps.rosa.trustyai-rob.g9ax.p3.openshiftapps.com/v1/completions
+      value: $BASE_URL/v1/completions
     - name: num_concurrent
       value:  "1"
     - name: max_retries
