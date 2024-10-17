@@ -11,11 +11,11 @@ metadata:
 spec:
   components:
     codeflare:
-      managementState: Managed
+      managementState: Removed
     dashboard:
       managementState: Managed
     datasciencepipelines:
-      managementState: Managed
+      managementState: Removed
     kserve:
       managementState: Managed
       serving:
@@ -27,14 +27,14 @@ spec:
     kueue:
       managementState: Managed
     modelmeshserving:
-      managementState: Managed
+      managementState: Removed
     modelregistry:
-      managementState: Managed
+      managementState: Removed
       registriesNamespace: odh-model-registries
     ray:
-      managementState: Managed
+      managementState: Removed
     trainingoperator:
-      managementState: Managed
+      managementState: Removed
     trustyai:
       managementState: Managed
       devFlags:
@@ -43,4 +43,4 @@ spec:
             sourcePath: ''
             uri: https://api.github.com/repos/robgeada/trustyai-service-operator/tarball/lm-eval-rob
     workbenches:
-      managementState: Managed
+      managementState: Removed

@@ -5,7 +5,7 @@ metadata:
   labels:
     opendatahub.io/dashboard: 'true'
   annotations:
-    openshift.io/display-name: granite-7b
+    openshift.io/display-name: phi-3
     security.opendatahub.io/enable-auth: 'true'
     serving.knative.openshift.io/enablePassthrough: 'true'
     sidecar.istio.io/inject: 'true'
@@ -20,16 +20,16 @@ spec:
       name: ''
       resources:
         limits:
-          cpu: '2'
-          memory: 8Gi
+          cpu: '8'
+          memory: 32Gi
           nvidia.com/gpu: '1'
         requests:
-          cpu: '1'
-          memory: 4Gi
+          cpu: '8'
+          memory: 32Gi
           nvidia.com/gpu: '1'
-      runtime: vllm-runtime-fp16
+      runtime: vllm-runtime-phi-3
       storage:
-        key: aws-connection-minio-data-connection
+        key: aws-connection-phi-3-data-connection
         path: Phi-3-mini-4k-instruct
     tolerations:
       - effect: NoSchedule

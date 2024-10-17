@@ -45,21 +45,31 @@ then
   oc patch DSCInitialization default-dsci --type='json' -p="[{'op': 'replace', 'path': '/spec/serviceMesh/auth/audiences/0', 'value': '$sa_issuer'}]"
 fi
 ```
-
 Then restart your odh-model-controller deployment
 
+
+## Deploy Model
+Two sets of files are provided for deploying a Phi-3 mini or a Granite-7b model. To choose one, run
+
+`MODEL_PATH=models/granite-7b` 
+
+or
+
+`MODEL_PATH=models/phi-3`
+
 ## Deploy LLM Storage Container
-1) `oc apply -f llm-model-container.yaml`
+1) `oc apply -f ${MODEL_PATH}/*-model-container.yaml`
 
 This downloads the LLM(s) from Huggingface, so can take some time to spin up (5-10 minutes)
 
 ## Deploy the LLMs
 ```bash
-oc apply -f vllm_serving_runtime.yaml
-oc apply -f isvc.yaml
+oc apply -f ${MODEL_PATH}/*-serving-runtime.yaml
+oc apply -f ${MODEL_PATH}/*-isvc.yaml
 ```
 
 ## Set up query parameters
+(Adjust the `LLM_ROUTE` grep if you have multiple models deployed in the namespace)
 ```bash
 TOKEN=$(oc create token user-one)
 LLM_ROUTE=$(oc get $(oc get ksvc -o name | grep predictor) --template={{.status.url}})
@@ -76,16 +86,17 @@ INFO: Uvicorn running on http://0.0.0.0:8080 (Press CTRL+C to quit)
 ## Query
 ```bash
 LLM_PROMPT="Hi, what's your name?"
-echo $(curl -ks $LLM_ROUTE/v1/completions \
+echo $(curl -ks $LLM_ROUTE/v1/chat/completions\
    -H "Authorization: Bearer ${TOKEN}" \
    -H "Content-Type: application/json" \
    -d "{
-   \"model\": ${MODEL},
-   \"prompt\": \"${LLM_PROMPT}\",
-   \"max_tokens\":26,
-   \"temperature\": .1
+   \"model\": \"${MODEL}\",
+   \"messages\": [{\"role\": \"user\", \"content\": \"${LLM_PROMPT}\"}],
+   \"temperature\":0
    }" | jq ".choices[0].text")
 ```
+
+
 Should return:
 ```.
 Chatbot: Hello! I'm Phi, your AI assistant. How can I help you today?"

@@ -1,9 +1,10 @@
 apiVersion: serving.kserve.io/v1alpha1
 kind: ServingRuntime
 metadata:
-  name: vllm-runtime-fp16
+  name: vllm-runtime-granite
   annotations:
-    openshift.io/display-name: vLLM ServingRuntime for KServe - Float16
+    openshift.io/display-name: vLLM ServingRuntime for KServe - Granite
+    opendatahub.io/template-display-name: vLLM ServingRuntime for KServe - Granite
     opendatahub.io/recommended-accelerators: '["nvidia.com/gpu"]'
   labels:
     opendatahub.io/dashboard: 'true'
@@ -11,6 +12,9 @@ spec:
   annotations:
     prometheus.io/path: /metrics
     prometheus.io/port: '8080'
+    openshift.io/display-name: vLLM ServingRuntime for KServe - Granite
+  labels:
+    opendatahub.io/dashboard: 'true'
   containers:
     - args:
         - '--port=8080'
@@ -18,6 +22,7 @@ spec:
         - '--served-model-name={{.Name}}'
         - '--dtype=float16'
         - '--enforce-eager'
+        - '--tensor-parallel-size=2'
       command:
         - python
         - '-m'
