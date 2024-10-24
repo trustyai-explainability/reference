@@ -10,8 +10,8 @@ Follow the instructions in [the vLLLM deployment guide](../llm-deployment/vllm/R
 
 
 #### Model Args
-`base_url` should be set to the route/service URL of your model. Make sure to include the `/v1/completions` endpoint in the URL.
-
+* `base_url` should be set to the route/service URL of your model. Make sure to include the `/v1/completions` endpoint in the URL.
+* `tokenizer` should match the path to your model on Huggingface. E.g., for granite, use `ibm-granite/granite-7b-instruct` and for Phi-3, use `microsoft/Phi-3-mini-4k-instruct`.
 #### Secret Ref
 `envSecrets.secretRef` should point to a secret that contains a token that can authenticate to your model. `secretRef.name` should be
 the secret's name in the namespace, while `secretRef.key` should point at the token's key within the secret. 
