@@ -92,7 +92,7 @@ spec:
 apiVersion: v1
 kind: Secret
 metadata:
-  name: aws-connection-phi3-data-connection
+  name: aws-connection-phi-3-data-connection
   labels:
     opendatahub.io/dashboard: 'true'
     opendatahub.io/managed: 'true'
