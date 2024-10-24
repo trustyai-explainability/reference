@@ -90,14 +90,14 @@ echo $(curl -ks $LLM_ROUTE/v1/chat/completions\
    -H "Authorization: Bearer ${TOKEN}" \
    -H "Content-Type: application/json" \
    -d "{
-   \"model\": \"${MODEL}\",
+   \"model\": \"$MODEL\",
    \"messages\": [{\"role\": \"user\", \"content\": \"${LLM_PROMPT}\"}],
    \"temperature\":0
-   }" | jq ".choices[0].text")
+   }" | jq ".choices[0].message.content")
 ```
 
 
-Should return:
+Should return something like:
 ```.
 Chatbot: Hello! I'm Phi, your AI assistant. How can I help you today?"
 ```
