@@ -1,4 +1,4 @@
-# Deploying Guardrails Orchestrator onto KServe RawDeployment
+# Deploying GuardrailsOrchestrator onto KServe RawDeployment
 
 ## Prequisites
 - ODH 2.20
@@ -26,20 +26,30 @@
     ```
 ## Deploy a Generator Service
 1. Deploy the model container
+    ```
+    oc apply -f gpt2.yaml -n guardrails-test
+    ```
+2. Deploy the following Caikit Standalone ServingRuntime:
+    ```
+    oc apply -f generator/caikit-standalone-sr.yaml -n guardrails-test
+    ```
+3. Add the following `annotation` to `generator/gpt2-isvc.yaml` to use KServe in RawDeployment mode:
+    ```
+    serving.kserve.io/deploymentMode: RawDeployment
+    ```
+4. Deploy the following InferenceService:
+    ```
+    oc apply -f generator/gpt2-isvc.yaml -n guardrails-test
+    ```
 
-2. Deploy the following `caikit-nlp` ServingRuntime:
+5. Ensure that the InferenceService's `READY` state is set to `True`
     ```
-    oc apply -f caikit-nlp_sr.yaml -n guardrails-test
+    oc get isvc/gpt2 -n guardrails-test
     ```
-
-3. Validate that the generator endpoint works
+    Expected output:
     ```
-    curl -kv --data '{
-        "model_id": "'"${MODEL_ID}"'",
-        "inputs": "'"$1"'"
-    }' "$LLM_ROUTE/api/v1/task/text-generation" \
-        -H "Authorization: Bearer ${SA_TOKEN}" \
-        -H "Content-Type: application/json"
+    NAME   URL                                        READY   PREV   LATEST   PREVROLLEDOUTREVISION   LATESTREADYREVISION   AGE
+    gpt2   https://gpt2-guardrails-test.example.com   TRUE                                                                 3d18h
     ```
 
 ## Deploy a Regex Detector Service
@@ -48,29 +58,30 @@
     oc create ns guardrails-test
     ```
 
-2. Deploy the Caikit-NLP ServingRuntime
+2. Add the following `annotation` to `detector/regex-detector-isvc.yaml` to use KServe in RawDeployment mode:
     ```
-    oc apply -f caikit-standalone_sr.yaml -n guardrails-test
-    ```
-
-3. Deploy the following `regex-detector` InferenceService. Take note that the `serving.kserve.io/deploymentMode` in the annotations is set to `RawDeployment`
-    ```
-    oc apply -f regex-detector_isvc.yaml -n guardrails-test
+    serving.kserve.io/deploymentMode: RawDeployment
     ```
 
-4. Ensure that the generator and detector pods are up and running
+3. Deploy the InferenceService
     ```
-    oc get pods -n guardrails-test
+    oc apply -f detector/regex-detector_isvc.yaml -n guardrails-test
+    ```
+
+4. Ensure that the generator and detector InferenceService's `READY` state is set to `True`:
+    ```
+    oc get isvc -n guardrails-test
     ```
 
     Expected output:
     ```
-    NAME                                        READY   STATUS    RESTARTS   AGE
-    regex-detector-predictor-7b78b7bcb4-68sw7   1/1     Running   0          4h9m
+    NAME             URL                                                  READY   PREV   LATEST   PREVROLLEDOUTREVISION   LATESTREADYREVISION   AGE
+    gpt2             https://gpt2-guardrails-test.example.com             False                                                                 3d18h
+    regex-detector   https://regex-detector-guardrails-test.example.com   True                                                                  4d23h
     ```
 
 ## Deploy the Orchestrator
-1. Create the `ConfigMap`, `Deployment`, `Service`, and `Route` objects
+1. Create the `ConfigMap`, `Deployment`, `Service`, and `Route` objects for the orchestrator
     ```
     oc apply -f orchestrator.yaml -n guardrails-test
     ```
@@ -81,33 +92,59 @@
 
 4. Within the pod's terminal run the following commands to test the generator and detector endpoints
 
-* To test the generator's `api/v1/text/text-generation`:
-    - Retrieve the generator hostname
-        ```
-        LLM_HOSTNAME=$(oc get isvc -n)
-        ```
-    - Query the `api/v1/text/text-generation` endpoint:
-        ```
-        curl -kv  -d '{
-            "model_id": "'"${MODEL_ID}"'",
-            "inputs": "At what temp does Nitrogen boil?"
-        }' "$LLM_ROUTE:8080/api/v1/task/text-generation"     -H "Content-Type: application/json"
-        ```
+    *  Validate that the generator endpoint works
 
-* To test the detector's `api/v1/text/contents` endpoint:
-    - Retreive the detector hostname
-        ```
-        DETECTOR_HOSTNAME=$(oc get isvc regex-detector -o jsonpath='{.status.url}')
-        ```
-    - Query the `api/v1/text/contents` endpoint
-        ```
-        curl -X POST "http://127.0.0.1:8000/api/v1/text/contents" \
-        -H "Content-Type: application/json" \
-        -H "detector-id: has_regex_match" \
-        -d '{
-            "contents": ["My email address is xx@domain.com and zzz@hotdomain.co.uk"],
-            "regex_pattern": "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}"
-        }'
-        ```
+        - Retrieve the generator ISVC route
+            ```
+            GEN_ROUTE=$(oc get isvc gpt2 -o jsonpath='{.status.address.url}' |cut -d'/' -f3)
+            ```
+
+        - `POST` the `api/v1/task/text-generation` endpoint
+            ```
+            curl -kv --data '{
+                "model_id": "gpt-2",
+                "inputs": "At what temperature does Nitrogen boil?"
+            }' "$GEN_ROUTE/api/v1/task/text-generation" \
+                -H "Content-Type: application/json"
+            ```
+
+    * Validate that detector's endpoint wokrks
+        - Retrieve the detector ISVC route
+            ```
+            DETECTOR_ROUTE=$(oc get isvc regex-detector -o jsonpath='{.status.address.url}')
+            ```
+        - `POST` the `api/v1/text/contents` endpoint
+            ```
+            curl -X POST "$DETECTOR_ROUTE/api/v1/text/contents" \
+            -H "Content-Type: application/json" \
+            -H "detector-id: has_regex_match" \
+            -d '{
+                "contents": ["My email address is xx@domain.com and zzz@hotdomain.co.uk"],
+                "regex_pattern": "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}"
+            }'
+            ```
 
 5. Test the orchestrator service
+* Check the `/health` endpoint
+    ```
+    curl -v http://localhost:8034/health
+    ```
+
+* Send a request
+    ```
+     curl -v -H "Content-Type: application/json" \H "Content-Type: application/json" \
+    --data '{
+        "model_id": "gpt2",
+        "inputs": "dummy input",
+        "guardrail_config": {
+            "input": {
+                "masks": [],
+                "models": {}
+            },
+            "output": {
+                "models": {}
+            }
+        }
+    }' http://localhost:8033/api/v1/task/classification-with-text-generation
+    ```
+

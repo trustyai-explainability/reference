@@ -1,0 +1,47 @@
+apiVersion: serving.kserve.io/v1beta1
+kind: InferenceService
+metadata:
+  name: regex-detector
+  annotations:
+    openshift.io/display-name: regex-detector
+    serving.knative.openshift.io/enablePassthrough: "true"
+    sidecar.istio.io/inject: "true"
+    sidecar.istio.io/rewriteAppHTTPProbers: "true"
+  labels:
+    opendatahub.io/dashboard: "true"
+spec:
+  predictor:
+    maxReplicas: 1
+    minReplicas: 1
+    containers:
+      - name: kserve-container
+        image: quay.io/rh-ee-mmisiura/detector-regex:trial
+        ports:
+          - containerPort: 8000
+        readinessProbe:
+          httpGet:
+            path: /docs
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 20
+        resources:
+          limits:
+            cpu: "1"
+            memory: 2Gi
+          requests:
+            cpu: "500m"
+            memory: 1Gi
+
+curl -v -H "Content-Type: application/json" --data '{
+    "model_id": "gpt2",
+    "inputs": "some email abc123@something.com",
+    "guardrail_config": {
+        "input": {
+            "masks": [],
+            "models": {"regex": {}}
+        },
+        "output": {
+            "models": {}
+        }
+    }
+}' http://localhost:8034/api/v1/task/classification-with-text-generation
