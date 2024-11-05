@@ -1,0 +1,21 @@
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: orchestrator
+  namespace: guardrails-test
+spec:
+  hosts:
+    - gpt2-predictor.test.svc.cluster.local
+    - regex-detector-predictor.test.svc.cluster.local
+  http:
+    - match:
+        - port:
+      route:
+        - destination:
+            host: fms-orchestr8-nlp.guardrails-test.svc.cluster.local
+            port:
+              number: 8033
+
+# Generator
+# Detector
+# GuardrailsOrchestrator
