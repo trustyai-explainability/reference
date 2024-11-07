@@ -1,4 +1,4 @@
-1# LM-Eval For ODH-vLLM Models
+# LM-Eval For ODH-vLLM Models
 
 ## Install ODH
 Until LMEval is merged onto main, you'll need to use a devflag to get access to LM-Eval. A DSC has been provided [here](dsc.yaml).
@@ -6,11 +6,43 @@ Until LMEval is merged onto main, you'll need to use a devflag to get access to 
 ## Deploy Model
 Follow the instructions in [the vLLLM deployment guide](../llm-deployment/vllm/README.md).
 
+Store the namespace used, since we will refer to it as a variable throughout. Eg.
+
+```shell
+export NAMESPACE=test
+```
+
+You should also make a note of the model's URL and name:
+
+```shell
+oc get isvc -n $NAMESPACE
+```
+
+This should return something along
+
+```text
+NAME    URL                                                                   READY   PREV   LATEST   PREVROLLEDOUTREVISION   LATESTREADYREVISION     AGE
+phi-3   https://phi-3-test.<redacted>.com   True           100                              phi-3-predictor-00001   11h
+```
+
+Store this as the `MODEL_URL`:
+
+```shell
+export MODEL_URL="https://phi-3-test.<redacted>.com"
+```
+
+Finally get the model's name (assuming you just have one model deployed):
+
+```shell
+export MODEL_ID=$(curl -s $MODEL/v1/models | jq -r '.data[0].id')
+```
+
 ## Define your LMEvalJob CR
 
 
 #### Model Args
-* `base_url` should be set to the route/service URL of your model. Make sure to include the `/v1/completions` endpoint in the URL.
+* `model` should match the name with which the model is deployed on vLLM. This will be the previous `$MODEL_ID`
+* `base_url` should be set to the route/service URL of your model that you defined in `$MODEL_URL`. Make sure to include the `/v1/completions` endpoint in the URL, i.e. `$MODEL_URL/v1/completions`
 * `tokenizer` should match the path to your model on Huggingface. E.g., for granite, use `ibm-granite/granite-7b-instruct` and for Phi-3, use `microsoft/Phi-3-mini-4k-instruct`.
 #### Secret Ref
 `envSecrets.secretRef` should point to a secret that contains a token that can authenticate to your model. `secretRef.name` should be
@@ -24,7 +56,7 @@ If you followed this instructions in the vLLM deployment guide, then
 Pick some tasks to run!
 
 #### Batch Size
-The LMEval Controller may not correctly assign a sensible default batch size (PR incoming), so set this to `1` for safety.
+The LMEval Controller may not correctly assign a sensible default batch size (PR incoming), so set this to `1` for safety (although `auto` is better suited for vLLM specifically).
 
 
 ```yaml
@@ -38,10 +70,10 @@ spec:
     taskNames:
       - mmlu
   logSamples: true
-  batchSize: 1
+  batchSize: "auto"
   modelArgs:
     - name: model
-      value: granite
+      value: $MODEL_ID
     - name: base_url
       value: $ROUTE_TO_MODEL/v1/completions
     - name: num_concurrent
