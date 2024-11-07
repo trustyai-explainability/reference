@@ -20,12 +20,12 @@ spec:
       name: ''
       resources:
         limits:
-          cpu: '8'
-          memory: 32Gi
+          cpu: '4'
+          memory: 16Gi
           nvidia.com/gpu: '1'
         requests:
-          cpu: '8'
-          memory: 32Gi
+          cpu: '4'
+          memory: 16Gi
           nvidia.com/gpu: '1'
       runtime: vllm-runtime-phi-3
       storage:
