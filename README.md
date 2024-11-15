@@ -12,6 +12,9 @@ maintained. For an up-to-date reference source on TrustyAI, please see the [Trus
 |    ├── db-credentials-secret.yaml
 │    └── mariadb-with-db-credentials.yaml
 |
+├── kserve-raw
+|     └── metrics
+|
 ├── llm-deployment
 |     ├── minio
 |     ├── caikit
