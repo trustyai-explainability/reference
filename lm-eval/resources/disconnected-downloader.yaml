@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: Pod
+metadata:
+    name: model-dataset-download-pod
+spec:
+    containers:
+        - name: downloader
+          image: quay.io/ruimvieira/lmeval-offline-downloader:latest
+          volumeMounts:
+              - mountPath: /mnt/cache
+                name: cache-storage
+          resources:
+              requests:
+                  memory: "4Gi"
+                  cpu: "2"
+              limits:
+                  memory: "8Gi"
+                  cpu: "4"
+          env:
+              - name: HF_HOME
+                value: /mnt/cache
+              - name: HF_DATASETS_CACHE
+                value: /mnt/cache
+    volumes:
+        - name: cache-storage
+          persistentVolumeClaim:
+              claimName: models-pvc
+    restartPolicy: Never

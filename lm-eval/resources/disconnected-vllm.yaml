@@ -1,0 +1,223 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+    name: user-one
+    namespace: "test"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+    name: aws-connection-phi-3-data-connection
+    namespace: "test"
+    labels:
+        opendatahub.io/dashboard: "true"
+        opendatahub.io/managed: "true"
+    annotations:
+        opendatahub.io/connection-type: s3
+        openshift.io/display-name: Minio Data Connection - Phi3
+data:
+    AWS_ACCESS_KEY_ID: VEhFQUNDRVNTS0VZ
+    AWS_DEFAULT_REGION: dXMtc291dGg=
+    AWS_S3_BUCKET: bGxtcw==
+    AWS_S3_ENDPOINT: aHR0cDovL21pbmlvLXBoaTM6OTAwMA==
+    AWS_SECRET_ACCESS_KEY: VEhFU0VDUkVUS0VZ
+type: Opaque
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+    name: vllm-models-claim
+    namespace: "test"
+spec:
+    accessModes:
+        - ReadWriteOnce
+    volumeMode: Filesystem
+    resources:
+        requests:
+            storage: 300Gi
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+    name: user-one-view
+    namespace: "test"
+subjects:
+    - kind: ServiceAccount
+      name: user-one
+      namespace: "test"
+roleRef:
+    apiGroup: rbac.authorization.k8s.io
+    kind: ClusterRole
+    name: view
+---
+apiVersion: v1
+kind: Service
+metadata:
+    name: "minio-phi3"
+    namespace: "test"
+spec:
+    ports:
+        - name: minio-client-port
+          port: 9000
+          protocol: TCP
+          targetPort: 9000
+    selector:
+        app: "minio-phi3"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    name: phi3-minio-container # <--- change this
+    namespace: "test"
+labels:
+    app: "minio-phi3" # <--- change this to match label on the pod
+spec:
+    replicas: 1
+    selector:
+        matchLabels:
+            app: "minio-phi3" # <--- change this to match label on the pod
+    template: # => from here down copy and paste the pods metadata: and spec: sections
+        metadata:
+            labels:
+                app: "minio-phi3"
+                maistra.io/expose-route: "true"
+            name: "minio-phi3"
+        spec:
+            volumes:
+                - name: model-volume
+                  persistentVolumeClaim:
+                      claimName: vllm-models-claim
+            initContainers:
+                - name: download-model
+                  image: quay.io/rgeada/llm_downloader:latest
+                  securityContext:
+                      fsGroup: 1001
+                  command:
+                      - bash
+                      - -c
+                      - |
+                            # model="ibm-granite/granite-7b-instruct"
+                            model="microsoft/Phi-3-mini-4k-instruct"
+                            echo "starting download"
+                            /tmp/venv/bin/huggingface-cli download $model --local-dir /mnt/models/llms/$(basename $model)
+                            echo "Done!"
+                  resources:
+                      limits:
+                          memory: "2Gi"
+                          cpu: "2"
+                  volumeMounts:
+                      - mountPath: "/mnt/models/"
+                        name: model-volume
+            containers:
+                - args:
+                      - server
+                      - /models
+                  env:
+                      - name: MINIO_ACCESS_KEY
+                        value: THEACCESSKEY
+                      - name: MINIO_SECRET_KEY
+                        value: THESECRETKEY
+                  image: quay.io/trustyai/modelmesh-minio-examples:latest
+                  name: minio
+                  securityContext:
+                      allowPrivilegeEscalation: false
+                      capabilities:
+                          drop:
+                              - ALL
+                      seccompProfile:
+                          type: RuntimeDefault
+                  volumeMounts:
+                      - mountPath: "/models/"
+                        name: model-volume
+---
+apiVersion: serving.kserve.io/v1beta1
+kind: InferenceService
+metadata:
+    name: phi-3
+    namespace: "test"
+    labels:
+        opendatahub.io/dashboard: "true"
+    annotations:
+        openshift.io/display-name: phi-3
+
+        security.opendatahub.io/enable-auth: "true"
+
+        serving.knative.openshift.io/enablePassthrough: "true"
+        sidecar.istio.io/inject: "true"
+        sidecar.istio.io/rewriteAppHTTPProbers: "true"
+spec:
+    predictor:
+        maxReplicas: 1
+        minReplicas: 1
+        model:
+            modelFormat:
+                name: vLLM
+            name: ""
+            resources:
+                limits:
+                    cpu: "1"
+                    memory: "8Gi"
+                    nvidia.com/gpu: "1"
+                requests:
+                    cpu: "1"
+                    memory: "8Gi"
+                    nvidia.com/gpu: "1"
+            runtime: "vllm-runtime-phi-3"
+            storage:
+                key: aws-connection-phi-3-data-connection
+                path: Phi-3-mini-4k-instruct
+        tolerations:
+            - effect: NoSchedule
+              key: nvidia.com/gpu
+              operator: Exists
+---
+apiVersion: serving.kserve.io/v1alpha1
+kind: ServingRuntime
+metadata:
+    name: "vllm-runtime-phi-3"
+    namespace: "test"
+    annotations:
+        openshift.io/display-name: vLLM ServingRuntime for KServe - Phi-3
+        opendatahub.io/template-display-name: vLLM ServingRuntime for KServe - Phi-3
+        opendatahub.io/recommended-accelerators: '["nvidia.com/gpu"]'
+    labels:
+        opendatahub.io/dashboard: "true"
+spec:
+    annotations:
+        prometheus.io/path: /metrics
+        prometheus.io/port: "8080"
+        openshift.io/display-name: vLLM ServingRuntime for KServe - Phi-3
+    labels:
+        opendatahub.io/dashboard: "true"
+    containers:
+        - args:
+              - "--port=8080"
+              - "--model=/mnt/models"
+              - "--served-model-name=phi-3"
+              - "--dtype=float16"
+              - "--enforce-eager"
+          command:
+              - python
+              - "-m"
+              - vllm.entrypoints.openai.api_server
+          env:
+              - name: HF_HOME
+                value: /tmp/hf_home
+          image: "quay.io/opendatahub/vllm:stable-849f0f5"
+          name: kserve-container
+          ports:
+              - containerPort: 8080
+                protocol: TCP
+          volumeMounts:
+              - mountPath: /dev/shm
+                name: shm
+    multiModel: false
+    supportedModelFormats:
+        - autoSelect: true
+          name: vLLM
+    volumes:
+        - emptyDir:
+              medium: Memory
+              sizeLimit: 2Gi
+          name: shm
