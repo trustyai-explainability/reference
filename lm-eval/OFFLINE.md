@@ -292,6 +292,8 @@ oc apply -f resources/disconnected-vllm.yaml
 
 ## Create offline model and dataset storage
 
+### Method 1. - Use a downloader image
+
 Create a PVC with
 
 ```yaml
@@ -356,6 +358,61 @@ or
 ```sh
 oc apply -f resources/disconnected-downloader.yaml
 ```
+
+### Method 2. - Use model and dataset bundle container
+
+Create a PVC to hold the models and datasets
+
+```yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: models-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50Gi
+```
+
+Deploy a pod with the container image that has the models and datasets bundle
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: lmeval-offline-pod
+spec:
+  containers:
+    - name: main
+      image: quay.io/ruimvieira/lmeval-offline-bundle:latest
+      command: ["/bin/bash", "-c", "--"]
+      args:
+        - |
+          cp -r /mnt/cache/* /mnt/pvc/
+      volumeMounts:
+        - name: pvc-volume
+          mountPath: /mnt/pvc
+  volumes:
+    - name: pvc-volume
+      persistentVolumeClaim:
+        claimName: models-pvc
+```
+
+**NOTE:**
+
+If you want to keep the pod running to inspect the PVC, add `tail -f /dev/null` to the `args`. e.g.
+```yaml
+args:
+- |
+  cp -r /mnt/cache/* /mnt/pvc/ && 
+  tail -f /dev/null
+```
+
+When the pod completes, your files should be in the PVC.
+
+## Deploy LMEval
 
 Next, run the offline `LMEvalJob` with this CR. Remember to replace your token
 name with the secret named `user-one-...` and to use the actual URL. The URL can
