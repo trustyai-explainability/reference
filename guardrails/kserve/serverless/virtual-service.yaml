@@ -1,21 +1,32 @@
-apiVersion: networking.istio.io/v1beta1
+apiVersion: networking.istio.io/v1alpha3
 kind: VirtualService
 metadata:
-  name: orchestrator
-  namespace: guardrails-test
+  name: gpt2-predictor-mesh
+  namespace: guardrails-test-serverless
 spec:
+  gateways:
+  - mesh
   hosts:
-    - gpt2-predictor.test.svc.cluster.local
-    - regex-detector-predictor.test.svc.cluster.local
+  - gpt2.guardrails-test-serverless.svc.cluster.local
   http:
-    - match:
-        - port:
-      route:
-        - destination:
-            host: fms-orchestr8-nlp.guardrails-test.svc.cluster.local
-            port:
-              number: 8033
+  - headers:
+      request:
+        set:
+          Host: gpt2-predictor.guardrails-test-serverless.svc.cluster.local
+    match:
+    - authority:
+        regex: ^gpt2\.guardrails-test-serverless(\.svc(\.cluster\.local)?)?(?::\d{1,5})?$
+      gateways:
+      - mesh
+    - authority:
+        regex: ^gpt2-guardrails-test-serverless\.apps\.sno\.codemint\.ch(?::\d{1,5})?$
+      gateways:
+      - mesh
+    route:
+    - destination:
+        host: knative-local-gateway.istio-system.svc.cluster.local
+        port:
+          number: 80
+      weight: 100
 
-# Generator
-# Detector
-# GuardrailsOrchestrator
+fms-orchestr8-nlp.guardrails-test-serverless.svc.cluster.local

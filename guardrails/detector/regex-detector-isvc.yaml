@@ -31,3 +31,17 @@ spec:
           requests:
             cpu: "500m"
             memory: 1Gi
+
+curl -v -H "Content-Type: application/json" --data '{
+    "model_id": "gpt2",
+    "inputs": "some email abc123@something.com",
+    "guardrail_config": {
+        "input": {
+            "masks": [],
+            "models": {"regex": {}}
+        },
+        "output": {
+            "models": {}
+        }
+    }
+}' http://localhost:8034/api/v1/task/classification-with-text-generation
