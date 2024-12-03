@@ -1,6 +1,6 @@
 # LM-Eval
 
-Install a DataScienceCluster (DSC) with:
+Install a `DataScienceCluster` (DSC) with:
 
 ```yaml
 apiVersion: datasciencecluster.opendatahub.io/v1
@@ -33,8 +33,8 @@ spec:
       devFlags:
         manifests:
           - contextDir: config
-            sourcePath: ''
-            uri: 'https://github.com/ruivieira/trustyai-service-operator/tarball/lmeval-hardened-test-qe'
+            sourcePath: ""
+            uri: "https://github.com/ruivieira/trustyai-service-operator/tarball/lmeval-hardened-test-qe"
       managementState: Managed
     ray:
       managementState: Removed
@@ -54,9 +54,9 @@ spec:
 
 ## Testing
 
-The following will always assume a namespace `test`.
+> 💡 The following will always assume a namespace `test`.
 
-### Local model with local datasets
+### Local model, local datasets and bundled tasks
 
 Create a PVC to hold the models and datasets.
 
@@ -127,7 +127,6 @@ The result should be similar to
 0	/mnt/data/modules/datasets_modules
 0	/mnt/data/modules
 3.9G	/mnt/data
-
 ```
 
 You can now deploy an LMEval CR like
@@ -152,9 +151,119 @@ spec:
       pvcName: "lmeval-data"
 ```
 
-### Remote model with local datasets
+### Local model, local datasets and unitxt catalog tasks
 
-If you have any PVC or download Pods from previous tests, delete them.
+> 🚷 This is not working in no-remote code/offline
+
+> 👉 Delete any previous PVC for models and downloader pods.
+
+Create a PVC to hold the model and datasets.
+
+```yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: lmeval-data
+  namespace: test
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+```
+
+and the downloader pod:
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: lmeval-copy
+  namespace: "test"
+spec:
+  securityContext:
+    fsGroup: 1000
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+    - name: data
+      image: "quay.io/ruimvieira/lmeval-assets-flan-glue:latest"
+      command:
+        ["/bin/sh", "-c", "cp -r /mnt/data/. /mnt/pvc/ && tail -f /dev/null"]
+      securityContext:
+        runAsUser: 1000
+        runAsNonRoot: true
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+            - ALL
+      volumeMounts:
+        - mountPath: /mnt/pvc
+          name: pvc-volume
+  restartPolicy: Never
+  volumes:
+    - name: pvc-volume
+      persistentVolumeClaim:
+        claimName: "lmeval-data"
+```
+
+Once the copying has finished, check the contents by using
+
+```shell
+oc exec -it lmeval-copy -n test -- du /mnt/data -h
+```
+
+Which should give a result similar to
+
+```text
+168K	/mnt/data/datasets/glue/wnli/0.0.0/bcdcba79d07bc864c1c254ccfcedcce55bcc9a8c
+168K	/mnt/data/datasets/glue/wnli/0.0.0
+168K	/mnt/data/datasets/glue/wnli
+168K	/mnt/data/datasets/glue
+168K	/mnt/data/datasets
+3.9G	/mnt/data/flan
+0	/mnt/data/modules/datasets_modules
+0	/mnt/data/modules
+3.9G	/mnt/data
+```
+
+You can deploy the `LMEvalJob` CR now with
+
+````yaml
+apiVersion: trustyai.opendatahub.io/v1alpha1
+kind: LMEvalJob
+metadata:
+  name: "lmeval-test"
+  namespace: "test"
+spec:
+  model: hf
+  modelArgs:
+    - name: pretrained
+      value: "/opt/app-root/src/hf_home/flan"
+  taskList:
+    taskRecipes:
+      - card:
+          name: "cards.wnli"
+        template: "templates.classification.multi_class.relation.default"
+  logSamples: true
+  offline:
+    storage:
+      pvcName: "lmeval-data"
+```
+
+> 🚷 This is not working in no-remote code/offline
+
+### Local model, local datasets and unitxt custom tasks
+
+### Remote model, local dataset with bundled tasks
+
+> This example, assumes no authentication for the vLLM model. However, it will
+> work the same **with** authentication, the only change needed is to add
+> `security.opendatahub.io/enable-auth: 'true'` to the `InferenceService
+> annotations.
+
+> 👉 Delete any previous PVC for models and downloader pods.
 
 Create a new PVC, as in the previous section:
 
@@ -170,7 +279,7 @@ spec:
   resources:
     requests:
       storage: 20Gi
-```
+````
 
 and deploy the downloader pod:
 
@@ -220,8 +329,7 @@ When it's finished, you should see something like
 13G	/mnt/data
 ```
 
-Deploy the vLLM model.
-Start by creating a service account
+Deploy the vLLM model. Start by creating a service account
 
 ```yaml
 apiVersion: v1
@@ -230,6 +338,7 @@ metadata:
   name: user-one
   namespace: "test"
 ```
+
 and a `Secret`:
 
 ```yaml
@@ -239,8 +348,8 @@ metadata:
   name: aws-connection-phi-3-data-connection
   namespace: "test"
   labels:
-    opendatahub.io/dashboard: 'true'
-    opendatahub.io/managed: 'true'
+    opendatahub.io/dashboard: "true"
+    opendatahub.io/managed: "true"
   annotations:
     opendatahub.io/connection-type: s3
     openshift.io/display-name: Minio Data Connection - Phi3
@@ -316,23 +425,23 @@ metadata:
   name: phi3-minio-container # <--- change this
   namespace: "test"
 labels:
-    app: "minio-phi3" # <--- change this to match label on the pod
+  app: "minio-phi3" # <--- change this to match label on the pod
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: "minio-phi3"  # <--- change this to match label on the pod
+      app: "minio-phi3" # <--- change this to match label on the pod
   template: # => from here down copy and paste the pods metadata: and spec: sections
     metadata:
       labels:
         app: "minio-phi3"
-        maistra.io/expose-route: 'true'
+        maistra.io/expose-route: "true"
       name: "minio-phi3"
     spec:
       volumes:
-      - name: model-volume
-        persistentVolumeClaim:
-          claimName: vllm-models-claim
+        - name: model-volume
+          persistentVolumeClaim:
+            claimName: vllm-models-claim
       initContainers:
         - name: download-model
           image: quay.io/rgeada/llm_downloader:latest
@@ -342,11 +451,11 @@ spec:
             - bash
             - -c
             - |
-              # model="ibm-granite/granite-7b-instruct"
-              model="microsoft/Phi-3-mini-4k-instruct"
-              echo "starting download"
-              /tmp/venv/bin/huggingface-cli download $model --local-dir /mnt/models/llms/$(basename $model)
-              echo "Done!"
+                # model="ibm-granite/granite-7b-instruct"
+                model="microsoft/Phi-3-mini-4k-instruct"
+                echo "starting download"
+                /tmp/venv/bin/huggingface-cli download $model --local-dir /mnt/models/llms/$(basename $model)
+                echo "Done!"
           resources:
             limits:
               memory: "2Gi"
@@ -360,7 +469,7 @@ spec:
             - /models
           env:
             - name: MINIO_ACCESS_KEY
-              value:  THEACCESSKEY
+              value: THEACCESSKEY
             - name: MINIO_SECRET_KEY
               value: THESECRETKEY
           image: quay.io/trustyai/modelmesh-minio-examples:latest
@@ -389,7 +498,7 @@ metadata:
     opendatahub.io/dashboard: "true"
   annotations:
     openshift.io/display-name: phi-3
-    
+
     serving.knative.openshift.io/enablePassthrough: "true"
     sidecar.istio.io/inject: "true"
     sidecar.istio.io/rewriteAppHTTPProbers: "true"
@@ -488,7 +597,7 @@ export MODEL_ID=$(curl -ks "$MODEL_URL/v1/models" | jq -r '.data[0].id')
 
 Try a request with
 
-```shell
+````shell
 ```shell
 curl -ks $MODEL_URL/v1/chat/completions\
    -H "Content-Type: application/json" \
@@ -497,7 +606,7 @@ curl -ks $MODEL_URL/v1/chat/completions\
     \"messages\": [{\"role\": \"user\", \"content\": \"How are you?\"}],
    \"temperature\":0
    }"
-```
+````
 
 You get a response similar to
 
@@ -567,5 +676,8 @@ spec:
             secretKeyRef:
               name: "user-one-token-hm4gb" # replace with your Secret name
               key: token
-
 ```
+
+### Remote model with unitxt catalog tasks
+
+> 👉 Delete any previous PVC for models and downloader pods.
