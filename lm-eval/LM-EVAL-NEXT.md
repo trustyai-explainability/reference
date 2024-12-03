@@ -60,7 +60,7 @@ spec:
 
 <details open>
 
-<summary>s</summary>
+<summary>Details on to deploy an LMEval job with local model, dataset and offline/code execution disabled</summary>
 
 Create a PVC to hold the models and datasets.
 
@@ -260,6 +260,8 @@ spec:
 > 🚷 This is not working in no-remote code/offline
 
 ### Local model, local datasets and unitxt custom tasks
+
+TBD
 
 ## Testing vLLM
 
@@ -688,3 +690,29 @@ spec:
 ### Remote model with unitxt catalog tasks
 
 > 👉 Delete any previous PVC for models and downloader pods.
+
+## Testing online, no code execution
+
+### Online model and datasets, no code execution
+
+For this example, we simply need the following CR:
+
+```yaml
+apiVersion: trustyai.opendatahub.io/v1alpha1
+kind: LMEvalJob
+metadata:
+  name: "lmeval-test"
+  namespace: "test"
+spec:
+  allowOnline: true
+  model: hf
+  modelArgs:
+    - name: pretrained
+      value: "google/flan-t5-base"
+  taskList:
+    taskNames:
+      - "arc_easy"
+  logSamples: true
+```
+
+## Testing online with code execution
