@@ -52,11 +52,15 @@ spec:
       managementState: Removed
 ```
 
-## Testing
+## Testing local models
 
 > 💡 The following will always assume a namespace `test`.
 
 ### Local model, local datasets and bundled tasks
+
+<details open>
+
+<summary>s</summary>
 
 Create a PVC to hold the models and datasets.
 
@@ -91,7 +95,7 @@ spec:
     - name: data
       image: "quay.io/ruimvieira/lmeval-assets-flan-arceasy:latest"
       command:
-        ["/bin/sh", "-c", "cp -r /mnt/data/. /mnt/pvc/ && tail -f /dev/null"]
+        ["/bin/sh", "-c", "cp -r /mnt/data/. /mnt/pvc/"]
       securityContext:
         runAsUser: 1000
         runAsNonRoot: true
@@ -150,11 +154,12 @@ spec:
     storage:
       pvcName: "lmeval-data"
 ```
+</details>
 
 ### Local model, local datasets and unitxt catalog tasks
 
 > 🚷 This is not working in no-remote code/offline
-
+>
 > 👉 Delete any previous PVC for models and downloader pods.
 
 Create a PVC to hold the model and datasets.
@@ -190,7 +195,7 @@ spec:
     - name: data
       image: "quay.io/ruimvieira/lmeval-assets-flan-glue:latest"
       command:
-        ["/bin/sh", "-c", "cp -r /mnt/data/. /mnt/pvc/ && tail -f /dev/null"]
+        ["/bin/sh", "-c", "cp -r /mnt/data/. /mnt/pvc/"]
       securityContext:
         runAsUser: 1000
         runAsNonRoot: true
@@ -230,7 +235,7 @@ Which should give a result similar to
 
 You can deploy the `LMEvalJob` CR now with
 
-````yaml
+```yaml
 apiVersion: trustyai.opendatahub.io/v1alpha1
 kind: LMEvalJob
 metadata:
@@ -255,6 +260,8 @@ spec:
 > 🚷 This is not working in no-remote code/offline
 
 ### Local model, local datasets and unitxt custom tasks
+
+## Testing vLLM
 
 ### Remote model, local dataset with bundled tasks
 
@@ -298,7 +305,7 @@ spec:
     - name: data
       image: "quay.io/ruimvieira/lmeval-assets-granite-arceasy:latest"
       command:
-        ["/bin/sh", "-c", "cp -r /mnt/data/. /mnt/pvc/ && tail -f /dev/null"]
+        ["/bin/sh", "-c", "cp -r /mnt/data/. /mnt/pvc/"]
       securityContext:
         runAsUser: 1000
         runAsNonRoot: true
