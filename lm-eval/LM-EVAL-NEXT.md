@@ -34,7 +34,7 @@ spec:
         manifests:
           - contextDir: config
             sourcePath: ""
-            uri: "https://github.com/ruivieira/trustyai-service-operator/tarball/lmeval-hardened-test-qe"
+            uri: "https://github.com/ruivieira/trustyai-service-operator/tarball/lmeval-hardened-test"
       managementState: Managed
     ray:
       managementState: Removed
@@ -712,6 +712,30 @@ spec:
   taskList:
     taskNames:
       - "arc_easy"
+  logSamples: true
+```
+
+### Online model and datasets, no code execution, unitxt
+
+For this example, we simply need the following CR:
+
+```yaml
+apiVersion: trustyai.opendatahub.io/v1alpha1
+kind: LMEvalJob
+metadata:
+  name: "lmeval-test"
+  namespace: "test"
+spec:
+  allowOnline: true
+  model: hf
+  modelArgs:
+    - name: pretrained
+      value: "google/flan-t5-base"
+  taskList:
+    taskRecipes:
+      - card:
+          name: "cards.wnli"
+        template: "templates.classification.multi_class.relation.default"
   logSamples: true
 ```
 
