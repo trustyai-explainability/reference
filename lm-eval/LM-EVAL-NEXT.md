@@ -56,6 +56,16 @@ spec:
 
 > 💡 The following will always assume a namespace `test`.
 
+Local models and datasets are available at `quay.io/ruimvieira`, they follow the convention `quay.io/ruimvieira/lmeval-assets-<model>-<dataset>`. Below is a list of available models:
+
+| Name                                                        | Model                             | Dataset                |
+|-------------------------------------------------------------|-----------------------------------|------------------------|
+| `quay.io/ruimvieira/lmeval-assets-flan-arceasy:latest`      | `google/flan-t5-base`             | allenai/ai2_arc (wnli) |
+| `quay.io/ruimvieira/lmeval-assets-granite-arceasy:latest`   | `ibm-granite/granite-7b-instruct` | allenai/ai2_arc (wnli) |
+| `quay.io/ruimvieira/lmeval-assets-flan-glue:latest`         | `google/flan-t5-base`             | nyu-mll/glue           |
+| `quay.io/ruimvieira/lmeval-assets-flan-20newsgroups:latest` | `google/flan-t5-base`             | SetFit/20_newsgroups   |
+
+
 ### Local model, local datasets and bundled tasks
 
 <details open>
