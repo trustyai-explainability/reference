@@ -34,7 +34,7 @@ spec:
         manifests:
           - contextDir: config
             sourcePath: ""
-            uri: "https://github.com/ruivieira/trustyai-service-operator/tarball/lmeval-hardened-test"
+            uri: "https://github.com/ruivieira/trustyai-service-operator/tarball/test/lmeval"
       managementState: Managed
     ray:
       managementState: Removed
@@ -50,6 +50,12 @@ spec:
       managementState: Removed
     trainingoperator:
       managementState: Removed
+```
+
+or
+
+```shell
+oc apply -f resources/dsc.yaml
 ```
 
 ## Testing local models
@@ -88,45 +94,63 @@ spec:
       storage: 20Gi
 ```
 
+**or** run
+
+```shell
+oc apply -f resources/00-pvc.yaml -n test
+```
+
 Deploy a Pod that will copy the models and datasets to the PVC:
 
 ```yaml
 apiVersion: v1
 kind: Pod
 metadata:
-  name: lmeval-copy
+  name: "lmeval-downloader"
   namespace: "test"
 spec:
-  securityContext:
-    fsGroup: 1000
-    seccompProfile:
-      type: RuntimeDefault
   containers:
-    - name: data
-      image: "quay.io/ruimvieira/lmeval-assets-flan-arceasy:latest"
-      command:
-        ["/bin/sh", "-c", "cp -r /mnt/data/. /mnt/pvc/"]
+    - name: downloader
+      image: quay.io/ruimvieira/lm-eval-downloader:latest
+      command: [ "python", "/app/download.py" ]
+      env:
+        - name: MODELS
+          value: "google/flan-t5-base:flan"
+        - name: DATASETS
+          value: "allenai/ai2_arc:ARC-Easy"
+        - name: DESTINATION_PATH
+          value: "/mnt/data"
+        - name: HF_HOME
+          value: "/mnt/data/hf_home"
+      volumeMounts:
+        - name: data-volume
+          mountPath: /mnt/data
       securityContext:
-        runAsUser: 1000
-        runAsNonRoot: true
         allowPrivilegeEscalation: false
+        runAsNonRoot: true
         capabilities:
           drop:
             - ALL
-      volumeMounts:
-        - mountPath: /mnt/pvc
-          name: pvc-volume
-  restartPolicy: Never
+        seccompProfile:
+          type: RuntimeDefault
+
   volumes:
-    - name: pvc-volume
+    - name: data-volume
       persistentVolumeClaim:
         claimName: "lmeval-data"
+  restartPolicy: Never
+```
+
+**or* run
+
+```shell
+oc apply -f resources/downloader-flan-arceasy.yaml -n test
 ```
 
 You can check that the copy has finished by running
 
 ```shell
-oc exec -it lmeval-copy -n test -- du /mnt/data -h
+oc exec -it lmeval-downloader -n test -- du /mnt/data -h
 ```
 
 The result should be similar to
@@ -164,6 +188,19 @@ spec:
     storage:
       pvcName: "lmeval-data"
 ```
+
+**or** run
+
+```shell
+oc apply -f resources/01-lmeval-local-offline-builtin.yaml -n test
+```
+
+Once you're done with the LMEval job, you can delete everything so we can move to the next test.
+
+```shell
+oc delete lmevaljob lmeval-test -n test 
+```
+
 </details>
 
 ### Local model, local datasets and unitxt catalog tasks
