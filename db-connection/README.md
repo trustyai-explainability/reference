@@ -1,4 +1,5 @@
 # TrustyAI Database Connection
+‼️ **NOTE:** Due to some TLS issues with newer MariaDB versions, please use MariaDB version **0.29** ‼️ 
 
 # Deploying a MariaDB
 There are two options for installing Maria: either we create a db-credentials secret _first_, which
