@@ -138,6 +138,8 @@ spec:
     - name: data-volume
       persistentVolumeClaim:
         claimName: "lmeval-data"
+  securityContext:
+    fsGroup: 1000
   restartPolicy: Never
 ```
 
@@ -246,11 +248,12 @@ spec:
             - ALL
         seccompProfile:
           type: RuntimeDefault
-
   volumes:
     - name: data-volume
       persistentVolumeClaim:
-        claimName: "lmeval-data"
+        claimName: "lmeval-data
+  securityContext:
+    fsGroup: 1000
   restartPolicy: Never
 ```
 
@@ -311,7 +314,7 @@ TBD
 > This example, assumes no authentication for the vLLM model. However, it will
 > work the same **with** authentication, the only change needed is to add
 > `security.opendatahub.io/enable-auth: 'true'` to the `InferenceService
-> annotations.
+> annotations. An example will be given at the end.
 
 > 👉 Delete any previous PVC for models and downloader pods.
 
@@ -331,55 +334,68 @@ spec:
       storage: 20Gi
 ````
 
+**or** run
+
+```shell
+oc apply -f resources/00-pvc.yaml -n test
+```
+
 and deploy the downloader pod:
 
 ```yaml
 apiVersion: v1
 kind: Pod
 metadata:
-  name: lmeval-copy
+  name: "lmeval-downloader"
   namespace: "test"
 spec:
-  securityContext:
-    fsGroup: 1000
-    seccompProfile:
-      type: RuntimeDefault
   containers:
-    - name: data
-      image: "quay.io/ruimvieira/lmeval-assets-granite-arceasy:latest"
-      command:
-        ["/bin/sh", "-c", "cp -r /mnt/data/. /mnt/pvc/"]
+    - name: downloader
+      image: quay.io/ruimvieira/lm-eval-downloader:latest
+      command: [ "python", "/app/download.py" ]
+      env:
+        - name: MODELS
+          value: "google/flan-t5-base:flan"
+        - name: DATASETS
+          value: "allenai/ai2_arc:ARC-Easy"
+        - name: DESTINATION_PATH
+          value: "/mnt/data"
+        - name: HF_HOME
+          value: "/mnt/data/hf_home"
+      volumeMounts:
+        - name: data-volume
+          mountPath: /mnt/data
       securityContext:
-        runAsUser: 1000
-        runAsNonRoot: true
         allowPrivilegeEscalation: false
+        runAsNonRoot: true
         capabilities:
           drop:
             - ALL
-      volumeMounts:
-        - mountPath: /mnt/pvc
-          name: pvc-volume
-  restartPolicy: Never
+        seccompProfile:
+          type: RuntimeDefault
+
   volumes:
-    - name: pvc-volume
+    - name: data-volume
       persistentVolumeClaim:
         claimName: "lmeval-data"
+  restartPolicy: Never
 ```
 
-When it's finished, you should see something like
+**or** run
 
-```text
-1.4M	/mnt/data/datasets/allenai___ai2_arc/ARC-Easy/0.0.0/210d026faf9955653af8916fad021475a3f00453
-1.4M	/mnt/data/datasets/allenai___ai2_arc/ARC-Easy/0.0.0
-1.4M	/mnt/data/datasets/allenai___ai2_arc/ARC-Easy
-1.4M	/mnt/data/datasets/allenai___ai2_arc
-1.4M	/mnt/data/datasets
-848K	/mnt/data/granite/model-card
-13G	/mnt/data/granite
-13G	/mnt/data
+```shell
+oc apply -f resources/downloader-flan-arceasy.yaml -n test
 ```
 
-Deploy the vLLM model. Start by creating a service account
+When it's finished, deploy the vLLM model. 
+Start by deploying the storage with:
+
+```shell
+oc apply -f resources/02-vllm-storage.yaml
+```
+
+This will create the following resources:
+A service account:
 
 ```yaml
 apiVersion: v1
@@ -472,16 +488,16 @@ and the deployment
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: phi3-minio-container # <--- change this
+  name: phi3-minio-container
   namespace: "test"
-labels:
-  app: "minio-phi3" # <--- change this to match label on the pod
+  labels:
+    app: "minio-phi3"
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: "minio-phi3" # <--- change this to match label on the pod
-  template: # => from here down copy and paste the pods metadata: and spec: sections
+      app: "minio-phi3"
+  template:
     metadata:
       labels:
         app: "minio-phi3"
@@ -501,7 +517,6 @@ spec:
             - bash
             - -c
             - |
-                # model="ibm-granite/granite-7b-instruct"
                 model="microsoft/Phi-3-mini-4k-instruct"
                 echo "starting download"
                 /tmp/venv/bin/huggingface-cli download $model --local-dir /mnt/models/llms/$(basename $model)
@@ -536,7 +551,13 @@ spec:
               name: model-volume
 ```
 
-Finally, create the `InferenceService`:
+Wait for the minio container to finish, and finally, create the `InferenceService`:
+
+```shell
+oc apply -f resources/02-vllm-serving.yaml -n test
+```
+
+This will create:
 
 ```yaml
 apiVersion: serving.kserve.io/v1beta1
@@ -548,7 +569,6 @@ metadata:
     opendatahub.io/dashboard: "true"
   annotations:
     openshift.io/display-name: phi-3
-
     serving.knative.openshift.io/enablePassthrough: "true"
     sidecar.istio.io/inject: "true"
     sidecar.istio.io/rewriteAppHTTPProbers: "true"
@@ -726,6 +746,12 @@ spec:
             secretKeyRef:
               name: "user-one-token-hm4gb" # replace with your Secret name
               key: token
+```
+
+Once you are done, you delete the LMEval with
+
+```shell
+
 ```
 
 ### Remote model with unitxt catalog tasks

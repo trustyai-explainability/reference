@@ -33,4 +33,6 @@ spec:
     - name: data-volume
       persistentVolumeClaim:
         claimName: "lmeval-data"
+  securityContext:
+    fsGroup: 1000
   restartPolicy: Never
