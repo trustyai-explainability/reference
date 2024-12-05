@@ -1,0 +1,19 @@
+apiVersion: trustyai.opendatahub.io/v1alpha1
+kind: LMEvalJob
+metadata:
+  name: "lmeval-test"
+  namespace: "test"
+spec:
+  model: hf
+  modelArgs:
+    - name: pretrained
+      value: "/opt/app-root/src/hf_home/flan"
+  taskList:
+    taskRecipes:
+      - card:
+          name: "cards.20_newsgroups_short"
+        template: "templates.classification.multi_class.title"
+  logSamples: true
+  offline:
+    storage:
+      pvcName: "lmeval-data"

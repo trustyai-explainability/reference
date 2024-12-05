@@ -141,31 +141,13 @@ spec:
   restartPolicy: Never
 ```
 
-**or* run
+**or** run
 
 ```shell
 oc apply -f resources/downloader-flan-arceasy.yaml -n test
 ```
 
-You can check that the copy has finished by running
-
-```shell
-oc exec -it lmeval-downloader -n test -- du /mnt/data -h
-```
-
-The result should be similar to
-
-```text
-1.4M	/mnt/data/datasets/allenai___ai2_arc/ARC-Easy/0.0.0/210d026faf9955653af8916fad021475a3f00453
-1.4M	/mnt/data/datasets/allenai___ai2_arc/ARC-Easy/0.0.0
-1.4M	/mnt/data/datasets/allenai___ai2_arc/ARC-Easy
-1.4M	/mnt/data/datasets/allenai___ai2_arc
-1.4M	/mnt/data/datasets
-3.9G	/mnt/data/flan
-0	/mnt/data/modules/datasets_modules
-0	/mnt/data/modules
-3.9G	/mnt/data
-```
+Wait for the Pod to complete.
 
 You can now deploy an LMEval CR like
 
@@ -199,14 +181,14 @@ Once you're done with the LMEval job, you can delete everything so we can move t
 
 ```shell
 oc delete lmevaljob lmeval-test -n test 
+oc delete pod lmeval-downloader -n test
+oc delete pvc lmeval-data -n test
 ```
 
 </details>
 
 ### Local model, local datasets and unitxt catalog tasks
 
-> 🚷 This is not working in no-remote code/offline
->
 > 👉 Delete any previous PVC for models and downloader pods.
 
 Create a PVC to hold the model and datasets.
@@ -225,62 +207,60 @@ spec:
       storage: 20Gi
 ```
 
+**or** run
+
+```shell
+oc apply -f resources/00-pvc.yaml -n test
+```
+
 and the downloader pod:
 
 ```yaml
 apiVersion: v1
 kind: Pod
 metadata:
-  name: lmeval-copy
+  name: "lmeval-downloader"
   namespace: "test"
 spec:
-  securityContext:
-    fsGroup: 1000
-    seccompProfile:
-      type: RuntimeDefault
   containers:
-    - name: data
-      image: "quay.io/ruimvieira/lmeval-assets-flan-glue:latest"
-      command:
-        ["/bin/sh", "-c", "cp -r /mnt/data/. /mnt/pvc/"]
+    - name: downloader
+      image: quay.io/ruimvieira/lm-eval-downloader:latest
+      command: [ "python", "/app/download.py" ]
+      env:
+        - name: MODELS
+          value: "google/flan-t5-base:flan"
+        - name: DATASETS
+          value: "SetFit/20_newsgroups"
+        - name: DESTINATION_PATH
+          value: "/mnt/data"
+        - name: HF_HOME
+          value: "/mnt/data/hf_home"
+      volumeMounts:
+        - name: data-volume
+          mountPath: /mnt/data
       securityContext:
-        runAsUser: 1000
-        runAsNonRoot: true
         allowPrivilegeEscalation: false
+        runAsNonRoot: true
         capabilities:
           drop:
             - ALL
-      volumeMounts:
-        - mountPath: /mnt/pvc
-          name: pvc-volume
-  restartPolicy: Never
+        seccompProfile:
+          type: RuntimeDefault
+
   volumes:
-    - name: pvc-volume
+    - name: data-volume
       persistentVolumeClaim:
         claimName: "lmeval-data"
+  restartPolicy: Never
 ```
 
-Once the copying has finished, check the contents by using
+**or** run
 
 ```shell
-oc exec -it lmeval-copy -n test -- du /mnt/data -h
+oc apply -f resources/downloader-flan-20newsgroups.yaml -n test
 ```
 
-Which should give a result similar to
-
-```text
-168K	/mnt/data/datasets/glue/wnli/0.0.0/bcdcba79d07bc864c1c254ccfcedcce55bcc9a8c
-168K	/mnt/data/datasets/glue/wnli/0.0.0
-168K	/mnt/data/datasets/glue/wnli
-168K	/mnt/data/datasets/glue
-168K	/mnt/data/datasets
-3.9G	/mnt/data/flan
-0	/mnt/data/modules/datasets_modules
-0	/mnt/data/modules
-3.9G	/mnt/data
-```
-
-You can deploy the `LMEvalJob` CR now with
+Once the copying has finished, you can deploy the `LMEvalJob` CR now with
 
 ```yaml
 apiVersion: trustyai.opendatahub.io/v1alpha1
@@ -296,15 +276,29 @@ spec:
   taskList:
     taskRecipes:
       - card:
-          name: "cards.wnli"
-        template: "templates.classification.multi_class.relation.default"
+          name: "cards.20_newsgroups_short"
+        template: "templates.classification.multi_class.title"
   logSamples: true
   offline:
     storage:
       pvcName: "lmeval-data"
 ```
 
-> 🚷 This is not working in no-remote code/offline
+**or** run
+
+```shell
+oc apply -f resources/01-lmeval-local-offline-unitxt.yaml
+```
+
+> **🐌 WARNING**: Look into the LMEval log and wait a couple of minutes for the first inference. This will be _very slow_, so if after a few inferences you're happy this is progressing with no errors, you can stop here.
+
+Once you are finished, you can tear down this setup with
+
+```shell
+oc delete lmevaljob lmeval-test -n test 
+oc delete pod lmeval-downloader -n test
+oc delete pvc lmeval-data -n test
+```
 
 ### Local model, local datasets and unitxt custom tasks
 
