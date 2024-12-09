@@ -848,7 +848,10 @@ oc delete pod lmeval-copy -n test
 oc delete pvc lmeval-data -n test
 ```
 
-### Testing local models, unitxt tasks
+### Testing local models, builtin tasks
+
+> NOTE: This example works with authentication turned off for the vLLM model.
+> At the end of this guide, steps on how to use authenticated models will be provided.
 
 Install the image containing the necessary model and dataset, by first creating a PVC:
 
@@ -942,6 +945,82 @@ spec:
   offline:
     storage:
       pvcName: "lmeval-data"`
+```
+
+Once you're done with the LMEval job, you can delete everything so we can move to the next test.
+
+```shell
+oc delete lmevaljob lmeval-test -n test 
+oc delete pod lmeval-copy -n test
+oc delete pvc lmeval-data -n test
+```
+
+### Testing local models, builtin tasks
+
+> NOTE: This example works with authentication turned off for the vLLM model.
+> At the end of this guide, steps on how to use authenticated models will be provided.
+
+Install the image containing the necessary model and dataset, by first creating a PVC:
+
+```shell
+oc apply -f resources/00-pvc.yaml -n test
+```
+
+And then the LMEval assets downloader:
+
+```shell
+oc apply -f resources/disconnected-flan-20newsgroups.yaml -n test
+```
+
+Run the local LMEval with
+
+```shell
+oc apply -f resources/01-lmeval-local-offline-unitxt.yaml -n test
+```
+
+Once you're done with the LMEval job, you can delete everything so we can move to the next test.
+
+```shell
+oc delete lmevaljob lmeval-test -n test 
+oc delete pod lmeval-copy -n test
+oc delete pvc lmeval-data -n test
+```
+
+### Testing remote models, unitxt tasks
+
+_(If not running a vLLM model already, start it as in [the previous section](#remote-model-local-dataset-with-bundled-tasks).)_
+
+Install the image containing the necessary model and dataset, by first creating a PVC:
+
+```shell
+oc apply -f resources/00-pvc.yaml -n test
+```
+
+And then the LMEval assets downloader:
+
+```shell
+oc apply -f resources/disconnected-flan-20newsgroups.yaml -n test
+```
+
+
+Get the vLLM model endpoint by using
+
+```shell
+export MODEL_URL=$(oc get isvc phi-3 -n test -o jsonpath='{.status.url}')
+```
+
+and the model id with
+
+```shell
+export MODEL_ID=$(curl -ks "$MODEL_URL/v1/models" | jq -r '.data[0].id')
+```
+
+Replace the URL in `02-lmeval-remote-offline-unitxt.yaml`, e.g.
+
+```shell
+MODEL_URL=$(oc get isvc phi-3 -n test -o jsonpath='{.status.url}') && \
+MODEL_ID=$(curl -ks "$MODEL_URL/v1/models" | jq -r '.data[0].id') && \
+sed -e "s|\${MODEL_ID}|${MODEL_ID}|g" -e "s|\${MODEL_URL}|${MODEL_URL}|g" resources/02-lmeval-remote-offline-unitxt.yaml | oc apply -n test -f -
 ```
 
 Once you're done with the LMEval job, you can delete everything so we can move to the next test.
