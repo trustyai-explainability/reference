@@ -1030,3 +1030,119 @@ oc delete lmevaljob lmeval-test -n test
 oc delete pod lmeval-copy -n test
 oc delete pvc lmeval-data -n test
 ```
+
+## Model authentication
+
+### Testing local models, builtin tasks
+
+_(If not running a vLLM model already, start it as in [the previous section](#remote-model-local-dataset-with-bundled-tasks).)_
+
+Install the image containing the necessary model and dataset, by first creating a PVC:
+
+```shell
+oc apply -f resources/00-pvc.yaml -n test
+```
+
+And then the LMEval assets downloader:
+
+```shell
+oc apply -f resources/disconnected-flan-arceasy.yaml -n test
+```
+
+
+Get the vLLM model endpoint by using
+
+```shell
+oc get ksvc phi-3-predictor -n test -o jsonpath='{.status.url}'
+```
+
+Get the token with
+
+```shell
+NAME=$(oc get secrets --no-headers -o custom-columns=":metadata.name" -n test | grep "^user-one-token") && \
+export TOKEN=$(oc get secret -n test $NAME -o jsonpath='{.data.token}' | base64 --decode)
+```
+
+and the model id with
+
+```shell
+export MODEL_ID=$(curl -ks -H "Authorization: Bearer $TOKEN" "$MODEL_URL/v1/models" | jq -r '.data[0].id')
+```
+
+Replace the URL in `02-lmeval-remote-offline-unitxt.yaml`, e.g.
+
+```shell
+MODEL_URL=$(oc get ksvc "phi-3-predictor" -n test -o jsonpath='{.status.url}') && \
+TOKEN_NAME=$(oc get secrets --no-headers -o custom-columns=":metadata.name" -n test | grep "^user-one-token") && \
+MODEL_ID=$(curl -ks -H "Authorization: Bearer ${TOKEN}" "${MODEL_URL}/v1/models" | jq -r '.data[0].id') && \
+sed -e "s|\${MODEL_ID}|${MODEL_ID}|g" \
+  -e "s|\${MODEL_URL}|${MODEL_URL}|g" \
+  -e "s|\${TOKEN_NAME}|${TOKEN_NAME}|g" \
+  resources/03-lmeval-remote-auth-offline-builtin.yaml | \
+  oc apply -n test -f -
+```
+
+Once you're done with the LMEval job, you can delete everything so we can move to the next test.
+
+```shell
+oc delete lmevaljob lmeval-test -n test 
+oc delete pod lmeval-copy -n test
+oc delete pvc lmeval-data -n test
+```
+
+### Testing remote models, unitxt tasks
+
+_(If not running a vLLM model already, start it as in [the previous section](#remote-model-local-dataset-with-bundled-tasks).)_
+
+Install the image containing the necessary model and dataset, by first creating a PVC:
+
+```shell
+oc apply -f resources/00-pvc.yaml -n test
+```
+
+And then the LMEval assets downloader:
+
+```shell
+oc apply -f resources/disconnected-flan-20newsgroups.yaml -n test
+```
+
+
+Get the vLLM model endpoint by using
+
+```shell
+oc get ksvc phi-3-predictor -n test -o jsonpath='{.status.url}'
+```
+
+Get the token with
+
+```shell
+NAME=$(oc get secrets --no-headers -o custom-columns=":metadata.name" -n test | grep "^user-one-token") && \
+export TOKEN=$(oc get secret -n test $NAME -o jsonpath='{.data.token}' | base64 --decode)
+```
+
+and the model id with
+
+```shell
+export MODEL_ID=$(curl -ks -H "Authorization: Bearer $TOKEN" "$MODEL_URL/v1/models" | jq -r '.data[0].id')
+```
+
+Replace the URL in `02-lmeval-remote-offline-unitxt.yaml`, e.g.
+
+```shell
+MODEL_URL=$(oc get ksvc "phi-3-predictor" -n test -o jsonpath='{.status.url}') && \
+TOKEN_NAME=$(oc get secrets --no-headers -o custom-columns=":metadata.name" -n test | grep "^user-one-token") && \
+MODEL_ID=$(curl -ks -H "Authorization: Bearer ${TOKEN}" "${MODEL_URL}/v1/models" | jq -r '.data[0].id') && \
+sed -e "s|\${MODEL_ID}|${MODEL_ID}|g" \
+  -e "s|\${MODEL_URL}|${MODEL_URL}|g" \
+  -e "s|\${TOKEN_NAME}|${TOKEN_NAME}|g" \
+  resources/03-lmeval-remote-auth-offline-unitxt.yaml | \
+  oc apply -n test -f -
+```
+
+Once you're done with the LMEval job, you can delete everything so we can move to the next test.
+
+```shell
+oc delete lmevaljob lmeval-test -n test 
+oc delete pod lmeval-copy -n test
+oc delete pvc lmeval-data -n test
+```
