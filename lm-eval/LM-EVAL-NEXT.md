@@ -820,9 +820,7 @@ Install a `DataScienceCluster` as
 oc apply -f resources/dsc.yaml
 ```
 
-
 ### Testing local models, builtin tasks
-
 
 Install the image containing the necessary model and dataset, by first creating a PVC:
 
@@ -868,6 +866,82 @@ Run the local LMEval with
 
 ```shell
 oc apply -f resources/01-lmeval-local-offline-unitxt.yaml -n test
+```
+
+Once you're done with the LMEval job, you can delete everything so we can move to the next test.
+
+```shell
+oc delete lmevaljob lmeval-test -n test 
+oc delete pod lmeval-copy -n test
+oc delete pvc lmeval-data -n test
+```
+
+### Testing remote models, builtin tasks
+
+Start by install vLLM model server as in [the previous section](#remote-model-local-dataset-with-bundled-tasks).
+
+Install the image containing the necessary model and dataset, by first creating a PVC:
+
+```shell
+oc apply -f resources/00-pvc.yaml -n test
+```
+
+And then the LMEval assets downloader:
+
+```shell
+oc apply -f resources/disconnected-flan-arceasy.yaml -n test
+```
+
+
+Get the vLLM model endpoint by using
+
+```shell
+export MODEL_URL=$(oc get isvc phi-3 -n test -o jsonpath='{.status.url}')
+```
+
+and the model id with
+
+```shell
+export MODEL_ID=$(curl -ks "$MODEL_URL/v1/models" | jq -r '.data[0].id')
+```
+
+Replace the URL in `02-lmeval-remote-offline-builtin.yaml`, e.g.
+
+```shell
+MODEL_URL=$(oc get isvc phi-3 -n test -o jsonpath='{.status.url}') && \
+MODEL_ID=$(curl -ks "$MODEL_URL/v1/models" | jq -r '.data[0].id') && \
+sed -e "s|\${MODEL_ID}|${MODEL_ID}|g" -e "s|\${MODEL_URL}|${MODEL_URL}|g" resources/02-lmeval-remote-offline-builtin.yaml | oc apply -n test -f -
+
+```
+
+```yaml
+apiVersion: trustyai.opendatahub.io/v1alpha1
+kind: LMEvalJob
+metadata:
+  name: "lmeval-test"
+  namespace: "test"
+spec:
+  model: local-completions
+  modelArgs:
+    - name: model
+      value: ${MODEL_ID} # <--- replace with your MODEL_ID
+    - name: base_url
+      value: "${MODEL_URL}/v1/completions" # <--- replace with your MODEL_URL
+    - name: num_concurrent
+      value: "1"
+    - name: max_retries
+      value: "3"
+    - name: tokenized_requests
+      value: "False"
+    - name: tokenizer
+      value: /opt/app-root/src/hf_home/flan
+  taskList:
+    taskNames:
+      - "arc_easy"
+  logSamples: true
+  offline:
+    storage:
+      pvcName: "lmeval-data"`
 ```
 
 Once you're done with the LMEval job, you can delete everything so we can move to the next test.
