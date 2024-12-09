@@ -807,3 +807,73 @@ spec:
 ```
 
 ## Testing online with code execution
+
+## Disconnected testing
+
+> The following images must be available in your disconnected cluster
+> * `quay.io/ruimvieira/lmeval-assets-flan-arceasy:latest`
+> * `quay.io/ruimvieira/lmeval-assets-flan-20newsgroups:latest`
+
+Install a `DataScienceCluster` as
+
+```shell
+oc apply -f resources/dsc.yaml
+```
+
+
+### Testing local models, builtin tasks
+
+
+Install the image containing the necessary model and dataset, by first creating a PVC:
+
+```shell
+oc apply -f resources/00-pvc.yaml -n test
+```
+
+And then the LMEval assets downloader:
+
+```shell
+oc apply -f resources/disconnected-flan-arceasy.yaml -n test
+```
+
+Run the local LMEval with
+
+```shell
+oc apply -f resources/01-lmeval-local-offline-builtin.yaml -n test
+```
+
+Once you're done with the LMEval job, you can delete everything so we can move to the next test.
+
+```shell
+oc delete lmevaljob lmeval-test -n test 
+oc delete pod lmeval-copy -n test
+oc delete pvc lmeval-data -n test
+```
+
+### Testing local models, unitxt tasks
+
+Install the image containing the necessary model and dataset, by first creating a PVC:
+
+```shell
+oc apply -f resources/00-pvc.yaml -n test
+```
+
+And then the LMEval assets downloader:
+
+```shell
+oc apply -f resources/disconnected-flan-20newsgroups.yaml -n test
+```
+
+Run the local LMEval with
+
+```shell
+oc apply -f resources/01-lmeval-local-offline-unitxt.yaml -n test
+```
+
+Once you're done with the LMEval job, you can delete everything so we can move to the next test.
+
+```shell
+oc delete lmevaljob lmeval-test -n test 
+oc delete pod lmeval-copy -n test
+oc delete pvc lmeval-data -n test
+```

@@ -1,0 +1,29 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: lmeval-copy
+  namespace: "test"
+spec:
+  securityContext:
+    fsGroup: 1000
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+    - name: data
+      image: "quay.io/ruimvieira/lmeval-assets-flan-arceasy:latest"
+      command: ["/bin/sh", "-c", "cp -r /mnt/data/. /mnt/pvc/"]
+      securityContext:
+        runAsUser: 1000
+        runAsNonRoot: true
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+            - ALL
+      volumeMounts:
+        - mountPath: /mnt/pvc
+          name: pvc-volume
+  restartPolicy: Never
+  volumes:
+    - name: pvc-volume
+      persistentVolumeClaim:
+        claimName: "lmeval-data"
