@@ -29,7 +29,7 @@ spec:
         manifests:
           - contextDir: config
             sourcePath: ""
-            uri: "https://github.com/ruivieira/trustyai-service-operator/tarball/test/lmeval"
+            uri: "https://github.com/trustyai-explainability/trustyai-service-operator/tarball/main"
       managementState: Managed
     ray:
       managementState: Removed
