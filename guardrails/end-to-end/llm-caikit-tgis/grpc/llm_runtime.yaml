@@ -1,0 +1,56 @@
+apiVersion: serving.kserve.io/v1alpha1
+kind: ServingRuntime
+metadata:
+  name: caikit-tgis-runtime-grpc
+  labels:
+    opendatahub.io/dashboard: 'true'
+  annotations:
+    opendatahub.io/recommended-accelerators: '["nvidia.com/gpu"]'
+spec:
+  multiModel: true
+  supportedModelFormats:
+    - autoSelect: true
+      name: caikit
+  containers:
+    - name: kserve-container
+      image: quay.io/opendatahub/text-generation-inference:stable
+      command: ["text-generation-launcher"]
+      args: ["--model-name=/mnt/models/artifacts/"]
+      env:
+        - name: TRANSFORMERS_CACHE
+          value: /tmp/transformers_cache
+    - name: transformer-container
+      # image: quay.io/opendatahub/caikit-tgis-serving:pr-385 
+      # image: quay.io/opendatahub/caikit-tgis-serving:stable-2d9db23
+      # image: quay.io/opendatahub/caikit-tgis-serving:fast-e9f047b
+      image: quay.io/rh-ee-mmisiura/caikit-tgis-serving:caiki_nlp_0.5.9
+      # image: quay.io/modh/caikit-tgis-serving@sha256:fe0d1f1233d0b056ca7c690f765b20611e20837465674998e3d293df9b95e838
+      env:
+        - name: RUNTIME_LOCAL_MODELS_DIR
+          value: /mnt/models
+        - name: TRANSFORMERS_CACHE
+          value: /tmp/transformers_cache
+        - name: RUNTIME_GRPC_ENABLED
+          value: "true"
+        - name: RUNTIME_HTTP_ENABLED
+          value: "false"
+      ports:
+        - containerPort: 8085
+          name: h2c
+          protocol: TCP
+      readinessProbe:
+        exec:
+          command:
+            - python
+            - -m
+            - caikit_health_probe
+            - readiness
+        initialDelaySeconds: 60 # might require larger values for large models
+      livenessProbe:
+        exec:
+          command:
+            - python
+            - -m
+            - caikit_health_probe
+            - liveness
+        initialDelaySeconds: 60
