@@ -98,7 +98,7 @@ metadata:
 data:
   config.yaml: |
     generation:
-      provider: tgis
+      provider: nlp
       service:
         hostname: llm-predictor.test.svc.cluster.local
         port: 8085
@@ -106,7 +106,7 @@ data:
       hap:
         type: text_contents
         service:
-          hostname: guardrails-detector-ibm-guardian-predictor.test.svc.cluster.local
+          hostname: guardrails-detector-ibm-hap-predictor.test.svc.cluster.local
           port: 8000
         chunker_id: whole_doc_chunker
         default_threshold: 0.5
