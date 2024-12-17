@@ -8,7 +8,7 @@ oc apply -f resources/dsc.yaml
 
 Change the TrustyAI `devFlag` as needed.
 
-<details open="false">
+<details>
 
 <summary>Example <code>DataScienceCluster</code></summary>
 
@@ -206,9 +206,15 @@ spec:
 
 </details>
 
-
-
 and the downloader pod:
+
+```shell
+oc apply -f resources/downloader-flan-20newsgroups.yaml -n test
+```
+
+<details>
+
+<summary>👉 Details on the downloader pod</summary>
 
 ```yaml
 apiVersion: v1
@@ -250,13 +256,17 @@ spec:
   restartPolicy: Never
 ```
 
-**or** run
-
-```shell
-oc apply -f resources/downloader-flan-20newsgroups.yaml -n test
-```
+</details>
 
 Once the copying has finished, you can deploy the `LMEvalJob` CR now with
+
+```shell
+oc apply -f resources/01-lmeval-local-offline-unitxt.yaml
+```
+
+<details>
+
+<summary>👉 Details on LMEval CR</summary>
 
 ```yaml
 apiVersion: trustyai.opendatahub.io/v1alpha1
@@ -280,13 +290,9 @@ spec:
       pvcName: "lmeval-data"
 ```
 
-**or** run
+</details>
 
-```shell
-oc apply -f resources/01-lmeval-local-offline-unitxt.yaml
-```
-
-> **🐌 WARNING**: Look into the LMEval log and wait a couple of minutes for the
+> **🐌 WARNING**: If not using GPU acceleration, look into the LMEval log and wait a couple of minutes for the
 > first inference. This will be _very slow_, so if after a few inferences you're
 > happy this is progressing with no errors, you can stop here.
 
@@ -315,6 +321,14 @@ TBD
 
 Create a new PVC, as in the previous section:
 
+```shell
+oc apply -f resources/00-pvc.yaml -n test
+```
+
+<details>
+
+<summary>👉 Details on the PVC</summary>
+
 ```yaml
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -329,13 +343,18 @@ spec:
       storage: 20Gi
 ```
 
-**or** run
+</details>
 
-```shell
-oc apply -f resources/00-pvc.yaml -n test
-```
 
 and deploy the downloader pod:
+
+```shell
+oc apply -f resources/downloader-flan-arceasy.yaml -n test
+```
+
+<details>
+
+<summary>👉 Details on the downloader pod</summary>
 
 ```yaml
 apiVersion: v1
@@ -376,11 +395,8 @@ spec:
   restartPolicy: Never
 ```
 
-**or** run
+</details>
 
-```shell
-oc apply -f resources/downloader-flan-arceasy.yaml -n test
-```
 
 When it's finished, deploy the vLLM model. Start by deploying the storage with:
 
