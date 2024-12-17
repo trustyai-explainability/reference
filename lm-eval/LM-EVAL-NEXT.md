@@ -771,7 +771,30 @@ Once you are done, you delete the LMEval with
 
 ### Online model and datasets, no code execution
 
-For this example, we simply need the following CR:
+For this example, we use the deployer script.
+This script allows to deploy a specific model and builtin task by using the env var `MODEL_NAME`, `TASK_NAME` and whether to use GPUs with `GPU=true` or `false`. If no model or task name is set, it will default ones.
+
+Some combinations of models/tasks to try:
+
+* Models:
+  * `google/flan-t5-base`
+  * `facebook/opt-1.3b`
+  * `EleutherAI/gpt-neo-1.3B`
+  * `mosaicml/mpt-7b`
+
+* Tasks:
+  * `arc_easy`
+
+As an example:
+
+```shell
+MODEL_NAME="google/flan-t5-base" TASK_NAME="arc_easy" GPU=true \
+./resources/lmeval-job-local-online-builtin.sh
+```
+
+<details>
+
+<summary>👉 Example of generated LMEval CR</summary>
 
 ```yaml
 apiVersion: trustyai.opendatahub.io/v1alpha1
@@ -790,6 +813,15 @@ spec:
       - "arc_easy"
   logSamples: true
 ```
+
+</details>
+
+Once finished, this LMEval job can be deleted with
+
+```shell
+oc delete lmevaljob lmeval-test -n test
+```
+
 
 ### Online model and datasets, no code execution, unitxt
 
