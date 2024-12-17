@@ -2,6 +2,16 @@
 
 Install a `DataScienceCluster` (DSC) with:
 
+```sh
+oc apply -f resources/dsc.yaml
+```
+
+Change the TrustyAI `devFlag` as needed.
+
+<details>
+
+<summary>Example <code>DataScienceCluster</code></summary>
+
 ```yaml
 apiVersion: datasciencecluster.opendatahub.io/v1
 kind: DataScienceCluster
@@ -52,33 +62,51 @@ spec:
       managementState: Removed
 ```
 
-or
+</details>
 
-```shell
-oc apply -f resources/dsc.yaml
-```
+LMEval works in several modes, all of which can be combined. The supported modes are:
 
-## Testing local models
+* **Local** vs **Remote**
+  * In **Local** mode, artifacts are run from the pod (models, datasets, tokenizers, etc)
+  * In **Remote**, the model is located somewhere else (e.g. a vLLM deployment)
+* **Online** vs **Offline**
+  * In **Online** mode, artifacts are fetched from a remote server (typically HuggingFace) if not present locally
+  * In **Offline** mode, the artifacts must be present locally, otherwise the evaluation will fail
+* **Code execution** vs **No code execution**
+  * In **Code execution**, LMEval can run external code needed to setup the evaluation (i.e. prepare a dataset, etc)
+  * In **No Code Execution**, no scripts are ran
+* **Builtin** vs **unitxt**
+  * In **Builtin** mode, the tasks used are the ones bundled with LMEval
+  * In **unitxt** mode, the tasks used are either from the unitxt catalog, or custom ones
+
+These modes can be combined (e.g. we can have remote, offline + builtin or local, online + unitxt). In this document we'll try to capture some examples of every combination.
+
+## Testing local mode
 
 > 💡 The following will always assume a namespace `test`.
 
-Local models and datasets are available at `quay.io/ruimvieira`, they follow the convention `quay.io/ruimvieira/lmeval-assets-<model>-<dataset>`. Below is a list of available models:
+Local models and datasets are available at `quay.io/ruimvieira`, they follow the
+convention `quay.io/ruimvieira/lmeval-assets-<model>-<dataset>`. Below is a list
+of available models:
 
 | Name                                                        | Model                             | Dataset                |
-|-------------------------------------------------------------|-----------------------------------|------------------------|
+| ----------------------------------------------------------- | --------------------------------- | ---------------------- |
 | `quay.io/ruimvieira/lmeval-assets-flan-arceasy:latest`      | `google/flan-t5-base`             | allenai/ai2_arc (wnli) |
 | `quay.io/ruimvieira/lmeval-assets-granite-arceasy:latest`   | `ibm-granite/granite-7b-instruct` | allenai/ai2_arc (wnli) |
 | `quay.io/ruimvieira/lmeval-assets-flan-glue:latest`         | `google/flan-t5-base`             | nyu-mll/glue           |
 | `quay.io/ruimvieira/lmeval-assets-flan-20newsgroups:latest` | `google/flan-t5-base`             | SetFit/20_newsgroups   |
 
-
 ### Local model, local datasets and bundled tasks
 
-<details open>
-
-<summary>Details on to deploy an LMEval job with local model, dataset and offline/code execution disabled</summary>
-
 Create a PVC to hold the models and datasets.
+
+```shell
+oc apply -f resources/00-pvc.yaml -n test
+```
+
+<details>
+
+<summary>👉 Details on the PVC</summary>
 
 ```yaml
 apiVersion: v1
@@ -94,64 +122,26 @@ spec:
       storage: 20Gi
 ```
 
-**or** run
+</details>
 
-```shell
-oc apply -f resources/00-pvc.yaml -n test
-```
 
 Deploy a Pod that will copy the models and datasets to the PVC:
 
-```yaml
-apiVersion: v1
-kind: Pod
-metadata:
-  name: "lmeval-downloader"
-  namespace: "test"
-spec:
-  containers:
-    - name: downloader
-      image: quay.io/ruimvieira/lm-eval-downloader:latest
-      command: [ "python", "/app/download.py" ]
-      env:
-        - name: MODELS
-          value: "google/flan-t5-base:flan"
-        - name: DATASETS
-          value: "allenai/ai2_arc:ARC-Easy"
-        - name: DESTINATION_PATH
-          value: "/mnt/data"
-        - name: HF_HOME
-          value: "/mnt/data/hf_home"
-      volumeMounts:
-        - name: data-volume
-          mountPath: /mnt/data
-      securityContext:
-        allowPrivilegeEscalation: false
-        runAsNonRoot: true
-        capabilities:
-          drop:
-            - ALL
-        seccompProfile:
-          type: RuntimeDefault
-
-  volumes:
-    - name: data-volume
-      persistentVolumeClaim:
-        claimName: "lmeval-data"
-  securityContext:
-    fsGroup: 1000
-  restartPolicy: Never
-```
-
-**or** run
-
 ```shell
-oc apply -f resources/downloader-flan-arceasy.yaml -n test
+oc apply -f resources/disconnected-flan-arceasy.yaml -n test
 ```
 
 Wait for the Pod to complete.
 
 You can now deploy an LMEval CR like
+
+```shell
+oc apply -f resources/01-lmeval-local-offline-builtin.yaml -n test
+```
+
+<details>
+
+<summary>👉 Details on LMEval CR</summary>
 
 ```yaml
 apiVersion: trustyai.opendatahub.io/v1alpha1
@@ -173,27 +163,32 @@ spec:
       pvcName: "lmeval-data"
 ```
 
-**or** run
+</details>
+
+
+Once you're done with the LMEval job, you can delete everything so we can move
+to the next test.
 
 ```shell
-oc apply -f resources/01-lmeval-local-offline-builtin.yaml -n test
-```
-
-Once you're done with the LMEval job, you can delete everything so we can move to the next test.
-
-```shell
-oc delete lmevaljob lmeval-test -n test 
+oc delete lmevaljob lmeval-test -n test
 oc delete pod lmeval-downloader -n test
 oc delete pvc lmeval-data -n test
 ```
 
-</details>
 
 ### Local model, local datasets and unitxt catalog tasks
 
 > 👉 Delete any previous PVC for models and downloader pods.
 
 Create a PVC to hold the model and datasets.
+
+```shell
+oc apply -f resources/00-pvc.yaml -n test
+```
+
+<details>
+
+<summary>👉 Details on the PVC</summary>
 
 ```yaml
 apiVersion: v1
@@ -209,13 +204,17 @@ spec:
       storage: 20Gi
 ```
 
-**or** run
-
-```shell
-oc apply -f resources/00-pvc.yaml -n test
-```
+</details>
 
 and the downloader pod:
+
+```shell
+oc apply -f resources/downloader-flan-20newsgroups.yaml -n test
+```
+
+<details>
+
+<summary>👉 Details on the downloader pod</summary>
 
 ```yaml
 apiVersion: v1
@@ -257,13 +256,17 @@ spec:
   restartPolicy: Never
 ```
 
-**or** run
-
-```shell
-oc apply -f resources/downloader-flan-20newsgroups.yaml -n test
-```
+</details>
 
 Once the copying has finished, you can deploy the `LMEvalJob` CR now with
+
+```shell
+oc apply -f resources/01-lmeval-local-offline-unitxt.yaml
+```
+
+<details>
+
+<summary>👉 Details on LMEval CR</summary>
 
 ```yaml
 apiVersion: trustyai.opendatahub.io/v1alpha1
@@ -287,18 +290,16 @@ spec:
       pvcName: "lmeval-data"
 ```
 
-**or** run
+</details>
 
-```shell
-oc apply -f resources/01-lmeval-local-offline-unitxt.yaml
-```
-
-> **🐌 WARNING**: Look into the LMEval log and wait a couple of minutes for the first inference. This will be _very slow_, so if after a few inferences you're happy this is progressing with no errors, you can stop here.
+> **🐌 WARNING**: If not using GPU acceleration, look into the LMEval log and wait a couple of minutes for the
+> first inference. This will be _very slow_, so if after a few inferences you're
+> happy this is progressing with no errors, you can stop here.
 
 Once you are finished, you can tear down this setup with
 
 ```shell
-oc delete lmevaljob lmeval-test -n test 
+oc delete lmevaljob lmeval-test -n test
 oc delete pod lmeval-downloader -n test
 oc delete pvc lmeval-data -n test
 ```
@@ -320,6 +321,14 @@ TBD
 
 Create a new PVC, as in the previous section:
 
+```shell
+oc apply -f resources/00-pvc.yaml -n test
+```
+
+<details>
+
+<summary>👉 Details on the PVC</summary>
+
 ```yaml
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -332,15 +341,20 @@ spec:
   resources:
     requests:
       storage: 20Gi
-````
-
-**or** run
-
-```shell
-oc apply -f resources/00-pvc.yaml -n test
 ```
 
+</details>
+
+
 and deploy the downloader pod:
+
+```shell
+oc apply -f resources/downloader-flan-arceasy.yaml -n test
+```
+
+<details>
+
+<summary>👉 Details on the downloader pod</summary>
 
 ```yaml
 apiVersion: v1
@@ -352,7 +366,7 @@ spec:
   containers:
     - name: downloader
       image: quay.io/ruimvieira/lm-eval-downloader:latest
-      command: [ "python", "/app/download.py" ]
+      command: ["python", "/app/download.py"]
       env:
         - name: MODELS
           value: "google/flan-t5-base:flan"
@@ -381,21 +395,16 @@ spec:
   restartPolicy: Never
 ```
 
-**or** run
+</details>
 
-```shell
-oc apply -f resources/downloader-flan-arceasy.yaml -n test
-```
 
-When it's finished, deploy the vLLM model. 
-Start by deploying the storage with:
+When it's finished, deploy the vLLM model. Start by deploying the storage with:
 
 ```shell
 oc apply -f resources/02-vllm-storage.yaml
 ```
 
-This will create the following resources:
-A service account:
+This will create the following resources: A service account:
 
 ```yaml
 apiVersion: v1
@@ -551,7 +560,8 @@ spec:
               name: model-volume
 ```
 
-Wait for the minio container to finish, and finally, create the `InferenceService`:
+Wait for the minio container to finish, and finally, create the
+`InferenceService`:
 
 ```shell
 oc apply -f resources/02-vllm-serving.yaml -n test
@@ -751,7 +761,6 @@ spec:
 Once you are done, you delete the LMEval with
 
 ```shell
-
 ```
 
 ### Remote model with unitxt catalog tasks
@@ -811,8 +820,9 @@ spec:
 ## Disconnected testing
 
 > The following images must be available in your disconnected cluster
-> * `quay.io/ruimvieira/lmeval-assets-flan-arceasy:latest`
-> * `quay.io/ruimvieira/lmeval-assets-flan-20newsgroups:latest`
+>
+> - `quay.io/ruimvieira/lmeval-assets-flan-arceasy:latest`
+> - `quay.io/ruimvieira/lmeval-assets-flan-20newsgroups:latest`
 
 Install a `DataScienceCluster` as
 
@@ -822,7 +832,8 @@ oc apply -f resources/dsc.yaml
 
 ### Testing local models, builtin tasks
 
-Install the image containing the necessary model and dataset, by first creating a PVC:
+Install the image containing the necessary model and dataset, by first creating
+a PVC:
 
 ```shell
 oc apply -f resources/00-pvc.yaml -n test
@@ -840,20 +851,23 @@ Run the local LMEval with
 oc apply -f resources/01-lmeval-local-offline-builtin.yaml -n test
 ```
 
-Once you're done with the LMEval job, you can delete everything so we can move to the next test.
+Once you're done with the LMEval job, you can delete everything so we can move
+to the next test.
 
 ```shell
-oc delete lmevaljob lmeval-test -n test 
+oc delete lmevaljob lmeval-test -n test
 oc delete pod lmeval-copy -n test
 oc delete pvc lmeval-data -n test
 ```
 
 ### Testing local models, builtin tasks
 
-> NOTE: This example works with authentication turned off for the vLLM model.
-> At the end of this guide, steps on how to use authenticated models will be provided.
+> NOTE: This example works with authentication turned off for the vLLM model. At
+> the end of this guide, steps on how to use authenticated models will be
+> provided.
 
-Install the image containing the necessary model and dataset, by first creating a PVC:
+Install the image containing the necessary model and dataset, by first creating
+a PVC:
 
 ```shell
 oc apply -f resources/00-pvc.yaml -n test
@@ -871,19 +885,22 @@ Run the local LMEval with
 oc apply -f resources/01-lmeval-local-offline-unitxt.yaml -n test
 ```
 
-Once you're done with the LMEval job, you can delete everything so we can move to the next test.
+Once you're done with the LMEval job, you can delete everything so we can move
+to the next test.
 
 ```shell
-oc delete lmevaljob lmeval-test -n test 
+oc delete lmevaljob lmeval-test -n test
 oc delete pod lmeval-copy -n test
 oc delete pvc lmeval-data -n test
 ```
 
 ### Testing remote models, builtin tasks
 
-Start by install vLLM model server as in [the previous section](#remote-model-local-dataset-with-bundled-tasks).
+Start by install vLLM model server as in
+[the previous section](#remote-model-local-dataset-with-bundled-tasks).
 
-Install the image containing the necessary model and dataset, by first creating a PVC:
+Install the image containing the necessary model and dataset, by first creating
+a PVC:
 
 ```shell
 oc apply -f resources/00-pvc.yaml -n test
@@ -894,7 +911,6 @@ And then the LMEval assets downloader:
 ```shell
 oc apply -f resources/disconnected-flan-arceasy.yaml -n test
 ```
-
 
 Get the vLLM model endpoint by using
 
@@ -914,7 +930,6 @@ Replace the URL in `02-lmeval-remote-offline-builtin.yaml`, e.g.
 MODEL_URL=$(oc get isvc phi-3 -n test -o jsonpath='{.status.url}') && \
 MODEL_ID=$(curl -ks "$MODEL_URL/v1/models" | jq -r '.data[0].id') && \
 sed -e "s|\${MODEL_ID}|${MODEL_ID}|g" -e "s|\${MODEL_URL}|${MODEL_URL}|g" resources/02-lmeval-remote-offline-builtin.yaml | oc apply -n test -f -
-
 ```
 
 ```yaml
@@ -947,20 +962,23 @@ spec:
       pvcName: "lmeval-data"`
 ```
 
-Once you're done with the LMEval job, you can delete everything so we can move to the next test.
+Once you're done with the LMEval job, you can delete everything so we can move
+to the next test.
 
 ```shell
-oc delete lmevaljob lmeval-test -n test 
+oc delete lmevaljob lmeval-test -n test
 oc delete pod lmeval-copy -n test
 oc delete pvc lmeval-data -n test
 ```
 
 ### Testing local models, builtin tasks
 
-> NOTE: This example works with authentication turned off for the vLLM model.
-> At the end of this guide, steps on how to use authenticated models will be provided.
+> NOTE: This example works with authentication turned off for the vLLM model. At
+> the end of this guide, steps on how to use authenticated models will be
+> provided.
 
-Install the image containing the necessary model and dataset, by first creating a PVC:
+Install the image containing the necessary model and dataset, by first creating
+a PVC:
 
 ```shell
 oc apply -f resources/00-pvc.yaml -n test
@@ -978,19 +996,22 @@ Run the local LMEval with
 oc apply -f resources/01-lmeval-local-offline-unitxt.yaml -n test
 ```
 
-Once you're done with the LMEval job, you can delete everything so we can move to the next test.
+Once you're done with the LMEval job, you can delete everything so we can move
+to the next test.
 
 ```shell
-oc delete lmevaljob lmeval-test -n test 
+oc delete lmevaljob lmeval-test -n test
 oc delete pod lmeval-copy -n test
 oc delete pvc lmeval-data -n test
 ```
 
 ### Testing remote models, unitxt tasks
 
-_(If not running a vLLM model already, start it as in [the previous section](#remote-model-local-dataset-with-bundled-tasks).)_
+_(If not running a vLLM model already, start it as in
+[the previous section](#remote-model-local-dataset-with-bundled-tasks).)_
 
-Install the image containing the necessary model and dataset, by first creating a PVC:
+Install the image containing the necessary model and dataset, by first creating
+a PVC:
 
 ```shell
 oc apply -f resources/00-pvc.yaml -n test
@@ -1001,7 +1022,6 @@ And then the LMEval assets downloader:
 ```shell
 oc apply -f resources/disconnected-flan-20newsgroups.yaml -n test
 ```
-
 
 Get the vLLM model endpoint by using
 
@@ -1023,10 +1043,11 @@ MODEL_ID=$(curl -ks "$MODEL_URL/v1/models" | jq -r '.data[0].id') && \
 sed -e "s|\${MODEL_ID}|${MODEL_ID}|g" -e "s|\${MODEL_URL}|${MODEL_URL}|g" resources/02-lmeval-remote-offline-unitxt.yaml | oc apply -n test -f -
 ```
 
-Once you're done with the LMEval job, you can delete everything so we can move to the next test.
+Once you're done with the LMEval job, you can delete everything so we can move
+to the next test.
 
 ```shell
-oc delete lmevaljob lmeval-test -n test 
+oc delete lmevaljob lmeval-test -n test
 oc delete pod lmeval-copy -n test
 oc delete pvc lmeval-data -n test
 ```
@@ -1035,9 +1056,11 @@ oc delete pvc lmeval-data -n test
 
 ### Testing local models, builtin tasks
 
-_(If not running a vLLM model already, start it as in [the previous section](#remote-model-local-dataset-with-bundled-tasks).)_
+_(If not running a vLLM model already, start it as in
+[the previous section](#remote-model-local-dataset-with-bundled-tasks).)_
 
-Install the image containing the necessary model and dataset, by first creating a PVC:
+Install the image containing the necessary model and dataset, by first creating
+a PVC:
 
 ```shell
 oc apply -f resources/00-pvc.yaml -n test
@@ -1048,7 +1071,6 @@ And then the LMEval assets downloader:
 ```shell
 oc apply -f resources/disconnected-flan-arceasy.yaml -n test
 ```
-
 
 Get the vLLM model endpoint by using
 
@@ -1082,19 +1104,22 @@ sed -e "s|\${MODEL_ID}|${MODEL_ID}|g" \
   oc apply -n test -f -
 ```
 
-Once you're done with the LMEval job, you can delete everything so we can move to the next test.
+Once you're done with the LMEval job, you can delete everything so we can move
+to the next test.
 
 ```shell
-oc delete lmevaljob lmeval-test -n test 
+oc delete lmevaljob lmeval-test -n test
 oc delete pod lmeval-copy -n test
 oc delete pvc lmeval-data -n test
 ```
 
 ### Testing remote models, unitxt tasks
 
-_(If not running a vLLM model already, start it as in [the previous section](#remote-model-local-dataset-with-bundled-tasks).)_
+_(If not running a vLLM model already, start it as in
+[the previous section](#remote-model-local-dataset-with-bundled-tasks).)_
 
-Install the image containing the necessary model and dataset, by first creating a PVC:
+Install the image containing the necessary model and dataset, by first creating
+a PVC:
 
 ```shell
 oc apply -f resources/00-pvc.yaml -n test
@@ -1105,7 +1130,6 @@ And then the LMEval assets downloader:
 ```shell
 oc apply -f resources/disconnected-flan-20newsgroups.yaml -n test
 ```
-
 
 Get the vLLM model endpoint by using
 
@@ -1139,10 +1163,11 @@ sed -e "s|\${MODEL_ID}|${MODEL_ID}|g" \
   oc apply -n test -f -
 ```
 
-Once you're done with the LMEval job, you can delete everything so we can move to the next test.
+Once you're done with the LMEval job, you can delete everything so we can move
+to the next test.
 
 ```shell
-oc delete lmevaljob lmeval-test -n test 
+oc delete lmevaljob lmeval-test -n test
 oc delete pod lmeval-copy -n test
 oc delete pvc lmeval-data -n test
 ```
