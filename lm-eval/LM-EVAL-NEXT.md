@@ -962,12 +962,6 @@ Once the minio pod is running, deploy the inference service with (<u>make sure t
 MODEL_NAME="phi-3" ./resources/vllm-inference-service.sh
 ```
 
-To delete all vLLM resources use:
-
-```shell
-kubectl delete all --selector=lmevaltests=vllm -n test
-```
-
 <details>
 
 <summary>👉 Example of vLLM deployment manifests</summary>
@@ -1304,16 +1298,25 @@ spec:
 
 </details>
 
-On vLLM is running, het the model's URL with (here we will assume `MODEL_NAME="phi-3`)
+Once vLLM is running, het the model's URL with (here we will assume `MODEL_NAME="phi-3`)
 
 ```shell
 export MODEL_URL=$(oc get isvc phi-3 -n test -o jsonpath='{.status.url}')
+echo $MODEL_URL
 ```
 
 Get the model's id with
 
 ```shell
 export MODEL_ID=$(curl -ks "$MODEL_URL/v1/models" | jq -r '.data[0].id')
+echo $MODEL_ID
+```
+
+Get the model's token with
+
+```shell
+export SECRET_NAME=$(oc get secrets -n test -o custom-columns=NAME:.metadata.name | grep user-one-token)
+echo $SECRET_NAME
 ```
 
 Try a request with
@@ -1323,7 +1326,7 @@ Try a request with
 curl -ks $MODEL_URL/v1/chat/completions\
    -H "Content-Type: application/json" \
    -d "{
-    \"model\": \"$MODEL_ID\",
+    \"model\": \"${MODEL_ID}\",
     \"messages\": [{\"role\": \"user\", \"content\": \"How are you?\"}],
    \"temperature\":0
    }"
@@ -1370,10 +1373,10 @@ Example:
 
 ```shell
 TASK_NAME="arc_easy" \
-MODEL_NAME=$MODEL_ID \
-URL=$MODEL_URL \
+MODEL_NAME=${MODEL_ID} \
+URL=${MODEL_URL} \
 TOKENIZER_NAME="google/flan-t5-base" \
-SECRET_NAME="secret-name" \
+SECRET_NAME=${SECRET_NAME} \
 ./resources/vllm-lmeval-online-cr-builtin.sh
 ```
 
@@ -1423,9 +1426,13 @@ spec:
 Once you are done, you delete the LMEval with
 
 ```shell
-kubectl delete all --selector=lmevaltests=vllm -n test
 oc delete lmevaljob lmeval-test -n test
 ```
+
+> If you want to delete all the vLLM resources also use
+> ```shell
+> kubectl delete all --selector=lmevaltests=vllm -n test
+> ```
 
 ### Remote model, local dataset with unitxt catalog tasks
 

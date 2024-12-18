@@ -40,9 +40,6 @@ spec:
       value: "False"
     - name: tokenizer
       value: "$TOKENIZER_NAME"
-  offline:
-    storage:
-      pvcName: "lmeval-data"
   pod:
     container:
       env:
