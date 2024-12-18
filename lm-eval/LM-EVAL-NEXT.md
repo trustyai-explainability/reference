@@ -771,7 +771,7 @@ Once you are done, you delete the LMEval with
 
 ### Online model and datasets, no code execution
 
-For this example, we use the deployer script.
+For this example, we use a script.
 This script allows to deploy a specific model and builtin task by using the env var `MODEL_NAME`, `TASK_NAME` and whether to use GPUs with `GPU=true` or `false`. If no model or task name is set, it will default ones.
 
 Some combinations of models/tasks to try:
@@ -825,14 +825,39 @@ oc delete lmevaljob lmeval-test -n test
 
 ### Online model and datasets, no code execution, unitxt
 
+For this example, we use a script.
+This script allows to deploy a specific model and unitxt card and template by using the env var `CARD`, `TEMPLATE` and whether to use GPUs with `GPU=true` or `false`. If no model or task name is set, it will default ones.
+
+Some combinations of models/tasks to try:
+
+* Models:
+  * `google/flan-t5-base`
+  * `facebook/opt-1.3b`
+  * `EleutherAI/gpt-neo-1.3B`
+  * `mosaicml/mpt-7b`
+
+* Cards/Templates:
+  * `arc_easy`
+
+As an example:
+
+```shell
+MODEL_NAME="google/flan-t5-base" CARD="cards.20_newsgroups_short" \
+TEMPLATE="templates.classification.multi_class.title" GPU=true \
+./resources/lmeval-job-local-online-unitxt.sh
+```
+
+<details>
+
+<summary>👉 Example of generated LMEval CR</summary>
+
 For this example, we simply need the following CR:
 
 ```yaml
 apiVersion: trustyai.opendatahub.io/v1alpha1
 kind: LMEvalJob
 metadata:
-  name: "lmeval-test"
-  namespace: "test"
+  name: "evaljob-sample"
 spec:
   allowOnline: true
   model: hf
@@ -842,12 +867,35 @@ spec:
   taskList:
     taskRecipes:
       - card:
-          name: "cards.wnli"
-        template: "templates.classification.multi_class.relation.default"
+          name: "cards.20_newsgroups_short"
+        template: "templates.classification.multi_class.title"
   logSamples: true
+
+  pod:
+    container:
+      resources:
+        limits:
+          cpu: '1'
+          memory: 8Gi
+          nvidia.com/gpu: '1'
+        requests:
+          cpu: '1'
+          memory: 8Gi
+          nvidia.com/gpu: '1'
 ```
 
+</details>
+
+Once finished, this LMEval job can be deleted with
+
+```shell
+oc delete lmevaljob lmeval-test -n test
+```
+
+
 ## Testing online with code execution
+
+TBD
 
 ## Disconnected testing
 
