@@ -5,6 +5,7 @@ metadata:
   namespace: "test"
   labels:
     opendatahub.io/dashboard: "true"
+    lmevaltests: "vllm"
   annotations:
     openshift.io/display-name: "{{MODEL_NAME}}"
 
