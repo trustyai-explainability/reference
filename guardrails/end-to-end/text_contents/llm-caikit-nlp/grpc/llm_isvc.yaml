@@ -22,11 +22,11 @@ spec:
       resources:
         limits:
           cpu: '2'
-          memory: 8Gi
+          memory: 2Gi
           nvidia.com/gpu: '1'
         requests:
           cpu: '1'
-          memory: 4Gi
+          memory: 1Gi
           nvidia.com/gpu: '1'
       runtime: llm
       storage:
