@@ -1,5 +1,22 @@
 # LM-Eval
 
+## Table of contents
+
+* [Creating a `DataScienceCluster`](#creating-a-datasciencecluster)
+* [Testing local mode (offline)](#testing-local-mode-offline)
+  * [Local model, local datasets and builtin tasks](#local-model-local-datasets-and-builtin-tasks)
+  * [Local model, local datasets and unitxt catalog tasks](#local-model-local-datasets-and-unitxt-catalog-tasks)
+  * [Local model, local datasets and unitxt custom tasks](#local-model-local-datasets-and-unitxt-custom-tasks)
+* [Testing local mode (online)](#testing-local-mode-online)
+  * [Online model and datasets, no code execution](#online-model-and-datasets-no-code-execution)
+  * [Online model and datasets, no code execution, unitxt](#online-model-and-datasets-no-code-execution-unitxt)
+  * [Online with code execution](#online-with-code-execution)
+* [Testing vLLM (offline)](#testing-vllm-offline)
+* [Disconnected testing](#disconnected-testing)
+* [Model authentication](#model-authentication)
+
+## Creating a `DataScienceCluster`
+
 Install a `DataScienceCluster` (DSC) with:
 
 ```sh
@@ -81,7 +98,7 @@ LMEval works in several modes, all of which can be combined. The supported modes
 
 These modes can be combined (e.g. we can have remote, offline + builtin or local, online + unitxt). In this document we'll try to capture some examples of every combination.
 
-## Testing local mode
+## Testing local mode (offline)
 
 > 💡 The following will always assume a namespace `test`.
 
@@ -96,7 +113,7 @@ of available models:
 | `quay.io/ruimvieira/lmeval-assets-flan-glue:latest`         | `google/flan-t5-base`             | nyu-mll/glue           |
 | `quay.io/ruimvieira/lmeval-assets-flan-20newsgroups:latest` | `google/flan-t5-base`             | SetFit/20_newsgroups   |
 
-### Local model, local datasets and bundled tasks
+### Local model, local datasets and builtin tasks
 
 Create a PVC to hold the models and datasets.
 
@@ -308,9 +325,139 @@ oc delete pvc lmeval-data -n test
 
 TBD
 
-## Testing vLLM
+## Testing local mode (online)
 
-### Remote model, local dataset with bundled tasks
+### Online model and datasets, no code execution
+
+For this example, we use a script.
+This script allows to deploy a specific model and builtin task by using the env var `MODEL_NAME`, `TASK_NAME` and whether to use GPUs with `GPU=true` or `false`. If no model or task name is set, it will default ones.
+
+Some combinations of models/tasks to try:
+
+* Models:
+  * `google/flan-t5-base`
+  * `facebook/opt-1.3b`
+  * `EleutherAI/gpt-neo-1.3B`
+  * `mosaicml/mpt-7b`
+
+* Tasks:
+  * `arc_easy`
+
+As an example:
+
+```shell
+MODEL_NAME="google/flan-t5-base" TASK_NAME="arc_easy" GPU=true \
+./resources/lmeval-job-local-online-builtin.sh
+```
+
+<details>
+
+<summary>👉 Example of generated LMEval CR</summary>
+
+```yaml
+apiVersion: trustyai.opendatahub.io/v1alpha1
+kind: LMEvalJob
+metadata:
+  name: "lmeval-test"
+  namespace: "test"
+spec:
+  allowOnline: true
+  model: hf
+  modelArgs:
+    - name: pretrained
+      value: "google/flan-t5-base"
+  taskList:
+    taskNames:
+      - "arc_easy"
+  logSamples: true
+```
+
+</details>
+
+Once finished, this LMEval job can be deleted with
+
+```shell
+oc delete lmevaljob lmeval-test -n test
+```
+
+
+### Online model and datasets, no code execution, unitxt
+
+For this example, we use a script.
+This script allows to deploy a specific model and unitxt card and template by using the env var `CARD`, `TEMPLATE` and whether to use GPUs with `GPU=true` or `false`. If no model or task name is set, it will default ones.
+
+Some combinations of models/tasks to try:
+
+* Models:
+  * `google/flan-t5-base`
+  * `facebook/opt-1.3b`
+  * `EleutherAI/gpt-neo-1.3B`
+  * `mosaicml/mpt-7b`
+
+* Cards/Templates:
+  * card: `cards.20_newsgroups_short`, template: `templates.classification.multi_class.title`
+  * card: `cards.hellaswag`, template: `templates.completion.multiple_choice.all`
+
+As an example:
+
+```shell
+MODEL_NAME="google/flan-t5-base" CARD="cards.20_newsgroups_short" \
+TEMPLATE="templates.classification.multi_class.title" GPU=true \
+./resources/lmeval-job-local-online-unitxt.sh
+```
+
+<details>
+
+<summary>👉 Example of generated LMEval CR</summary>
+
+For this example, we simply need the following CR:
+
+```yaml
+apiVersion: trustyai.opendatahub.io/v1alpha1
+kind: LMEvalJob
+metadata:
+  name: "evaljob-sample"
+spec:
+  allowOnline: true
+  model: hf
+  modelArgs:
+    - name: pretrained
+      value: "google/flan-t5-base"
+  taskList:
+    taskRecipes:
+      - card:
+          name: "cards.20_newsgroups_short"
+        template: "templates.classification.multi_class.title"
+  logSamples: true
+
+  pod:
+    container:
+      resources:
+        limits:
+          cpu: '1'
+          memory: 8Gi
+          nvidia.com/gpu: '1'
+        requests:
+          cpu: '1'
+          memory: 8Gi
+          nvidia.com/gpu: '1'
+```
+
+</details>
+
+Once finished, this LMEval job can be deleted with
+
+```shell
+oc delete lmevaljob lmeval-test -n test
+```
+
+### Online with code execution
+
+TBD
+
+## Testing vLLM (offline)
+
+### Remote model, offline, local dataset with bundled tasks
 
 > This example, assumes no authentication for the vLLM model. However, it will
 > work the same **with** authentication, the only change needed is to add
@@ -319,15 +466,39 @@ TBD
 
 > 👉 Delete any previous PVC for models and downloader pods.
 
+To automate the installation of a vLLM model use the script `resources/vllm-deploy.sh`. This script takes the following env vars as configuration:
+
+* `MODEL_REPO`, this is a HuggingFace model repo of the model to deploy, e.g. `google/flan-t5-base`
+* `MODEL_NAME`, this is the name you want to register the model with (e.g. `flan`), this will be used to create the endpoint and address the model
+
+Example:
+
+```shell
+MODEL_REPO="microsoft/Phi-3-mini-4k-instruct" MODEL_NAME="phi-3" ./resources/vllm-deploy.sh
+```
+
+Once the minio pod is running, deploy the inference service with (<u>make sure the name matches `MODEL_NAME` used above</u>)
+
+```shell
+MODEL_NAME="flan" ./resources/vllm-inference-service.sh
+```
+
+To delete all vLLM resources use:
+
+```shell
+kubectl delete all --selector=lmevaltests=vllm -n test
+```
+
+<details>
+
+<summary>👉 Example of vLLM deployment manifests</summary>
+
+
 Create a new PVC, as in the previous section:
 
 ```shell
 oc apply -f resources/00-pvc.yaml -n test
 ```
-
-<details>
-
-<summary>👉 Details on the PVC</summary>
 
 ```yaml
 apiVersion: v1
@@ -343,18 +514,11 @@ spec:
       storage: 20Gi
 ```
 
-</details>
-
-
 and deploy the downloader pod:
 
 ```shell
 oc apply -f resources/downloader-flan-arceasy.yaml -n test
 ```
-
-<details>
-
-<summary>👉 Details on the downloader pod</summary>
 
 ```yaml
 apiVersion: v1
@@ -394,9 +558,6 @@ spec:
         claimName: "lmeval-data"
   restartPolicy: Never
 ```
-
-</details>
-
 
 When it's finished, deploy the vLLM model. Start by deploying the storage with:
 
@@ -663,7 +824,9 @@ spec:
       name: shm
 ```
 
-Get the model's URL with
+</details>
+
+On vLLM is running, het the model's URL with (here we will assume `MODEL_NAME="phi-3`)
 
 ```shell
 export MODEL_URL=$(oc get isvc phi-3 -n test -o jsonpath='{.status.url}')
@@ -767,135 +930,6 @@ Once you are done, you delete the LMEval with
 
 > 👉 Delete any previous PVC for models and downloader pods.
 
-## Testing online, no code execution
-
-### Online model and datasets, no code execution
-
-For this example, we use a script.
-This script allows to deploy a specific model and builtin task by using the env var `MODEL_NAME`, `TASK_NAME` and whether to use GPUs with `GPU=true` or `false`. If no model or task name is set, it will default ones.
-
-Some combinations of models/tasks to try:
-
-* Models:
-  * `google/flan-t5-base`
-  * `facebook/opt-1.3b`
-  * `EleutherAI/gpt-neo-1.3B`
-  * `mosaicml/mpt-7b`
-
-* Tasks:
-  * `arc_easy`
-
-As an example:
-
-```shell
-MODEL_NAME="google/flan-t5-base" TASK_NAME="arc_easy" GPU=true \
-./resources/lmeval-job-local-online-builtin.sh
-```
-
-<details>
-
-<summary>👉 Example of generated LMEval CR</summary>
-
-```yaml
-apiVersion: trustyai.opendatahub.io/v1alpha1
-kind: LMEvalJob
-metadata:
-  name: "lmeval-test"
-  namespace: "test"
-spec:
-  allowOnline: true
-  model: hf
-  modelArgs:
-    - name: pretrained
-      value: "google/flan-t5-base"
-  taskList:
-    taskNames:
-      - "arc_easy"
-  logSamples: true
-```
-
-</details>
-
-Once finished, this LMEval job can be deleted with
-
-```shell
-oc delete lmevaljob lmeval-test -n test
-```
-
-
-### Online model and datasets, no code execution, unitxt
-
-For this example, we use a script.
-This script allows to deploy a specific model and unitxt card and template by using the env var `CARD`, `TEMPLATE` and whether to use GPUs with `GPU=true` or `false`. If no model or task name is set, it will default ones.
-
-Some combinations of models/tasks to try:
-
-* Models:
-  * `google/flan-t5-base`
-  * `facebook/opt-1.3b`
-  * `EleutherAI/gpt-neo-1.3B`
-  * `mosaicml/mpt-7b`
-
-* Cards/Templates:
-  * `arc_easy`
-
-As an example:
-
-```shell
-MODEL_NAME="google/flan-t5-base" CARD="cards.20_newsgroups_short" \
-TEMPLATE="templates.classification.multi_class.title" GPU=true \
-./resources/lmeval-job-local-online-unitxt.sh
-```
-
-<details>
-
-<summary>👉 Example of generated LMEval CR</summary>
-
-For this example, we simply need the following CR:
-
-```yaml
-apiVersion: trustyai.opendatahub.io/v1alpha1
-kind: LMEvalJob
-metadata:
-  name: "evaljob-sample"
-spec:
-  allowOnline: true
-  model: hf
-  modelArgs:
-    - name: pretrained
-      value: "google/flan-t5-base"
-  taskList:
-    taskRecipes:
-      - card:
-          name: "cards.20_newsgroups_short"
-        template: "templates.classification.multi_class.title"
-  logSamples: true
-
-  pod:
-    container:
-      resources:
-        limits:
-          cpu: '1'
-          memory: 8Gi
-          nvidia.com/gpu: '1'
-        requests:
-          cpu: '1'
-          memory: 8Gi
-          nvidia.com/gpu: '1'
-```
-
-</details>
-
-Once finished, this LMEval job can be deleted with
-
-```shell
-oc delete lmevaljob lmeval-test -n test
-```
-
-
-## Testing online with code execution
-
-TBD
 
 ## Disconnected testing
 
