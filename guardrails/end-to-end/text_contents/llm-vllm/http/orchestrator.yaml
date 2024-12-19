@@ -150,13 +150,6 @@ spec:
       port: 8034
       targetPort: 8034
   internalTrafficPolicy: Cluster
-  # type: LoadBalancer
-  # ipFamilyPolicy: SingleStack
-  # sessionAffinity: None
-  # selector:
-  #   app: fmstack-nlp
-  #   component: fms-orchestr8-nlp
-  #   deploy-name: fms-orchestr8-nlp
   type: ClusterIP
   ipFamilyPolicy: SingleStack
   sessionAffinity: None
