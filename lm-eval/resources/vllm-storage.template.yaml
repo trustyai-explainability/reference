@@ -5,6 +5,8 @@ kind: ServiceAccount
 metadata:
   name: user-one
   namespace: "test"
+  labels:
+    lmevaltests: "vllm"
 ---
 # Secret
 apiVersion: v1
@@ -15,6 +17,7 @@ metadata:
   labels:
     opendatahub.io/dashboard: "true"
     opendatahub.io/managed: "true"
+    lmevaltests: "vllm"
   annotations:
     opendatahub.io/connection-type: s3
     openshift.io/display-name: "Minio Data Connection - phi-3"
@@ -32,21 +35,24 @@ kind: PersistentVolumeClaim
 metadata:
   name: vllm-models-claim
   namespace: "test"
+  labels:
+    lmevaltests: "vllm"
 spec:
   accessModes:
     - ReadWriteOnce
   volumeMode: Filesystem
-  # storageClassName: gp3-csi
   resources:
     requests:
       storage: 300Gi
 ---
-# Source: odh-lm-eval-models/templates/07-role-binding.yaml
+# Role binding
 kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: user-one-view
   namespace: "test"
+  labels:
+    lmevaltests: "vllm"
 subjects:
   - kind: ServiceAccount
     name: user-one
@@ -56,12 +62,14 @@ roleRef:
   kind: ClusterRole
   name: view
 ---
-# Source: odh-lm-eval-models/templates/01-minio-service.yaml
+# Minio service
 apiVersion: v1
 kind: Service
 metadata:
   name: "minio-phi3"
   namespace: "test"
+  labels:
+    lmevaltests: "vllm"
 spec:
   ports:
     - name: minio-client-port
@@ -71,7 +79,7 @@ spec:
   selector:
     app: "minio-phi3"
 ---
-# Source: odh-lm-eval-models/templates/04-deployment.yaml
+# Deployment
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -79,6 +87,7 @@ metadata:
   namespace: "test"
   labels:
     app: "minio-phi3" # <--- change this to match label on the pod
+    lmevaltests: "vllm"
 spec:
   replicas: 1
   selector:
@@ -104,9 +113,9 @@ spec:
             - bash
             - -c
             - |
-              model="microsoft/Phi-3-mini-4k-instruct"
+              model="{{MODEL_REPO}}"
               echo "starting download"
-              /tmp/venv/bin/huggingface-cli download $model --local-dir /mnt/models/llms/phi-3
+              /tmp/venv/bin/huggingface-cli download $model --local-dir /mnt/models/llms/{{MODEL_NAME}}
               echo "Done!"
           resources:
             limits:
@@ -137,7 +146,7 @@ spec:
             - mountPath: "/models/"
               name: model-volume
 ---
-# Source: odh-lm-eval-models/templates/10-vlllm-serving-runtime.yaml
+# Serving runtime
 apiVersion: serving.kserve.io/v1alpha1
 kind: ServingRuntime
 metadata:
@@ -149,6 +158,7 @@ metadata:
     opendatahub.io/recommended-accelerators: '["nvidia.com/gpu"]'
   labels:
     opendatahub.io/dashboard: "true"
+    lmevaltests: "vllm"
 spec:
   annotations:
     prometheus.io/path: /metrics
@@ -160,7 +170,7 @@ spec:
     - args:
         - "--port=8080"
         - "--model=/mnt/models"
-        - "--served-model-name=phi-3"
+        - "--served-model-name={{MODEL_NAME}}"
         - "--dtype=float16"
         - "--enforce-eager"
       command:
