@@ -1,0 +1,11 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - service_account.yaml
+  - hap_model_container.yaml
+  - hap_runtime.yaml
+  - hap_isvc.yaml
+  - llm_runtime.yaml
+  - llm_model_container.yaml
+  - llm_isvc.yaml
+  - orchestrator.yaml
