@@ -24,6 +24,23 @@
 - [Disconnected testing](#disconnected-testing)
 - [Model authentication](#model-authentication)
 
+## Pre-flight
+
+Some of these examples require the `gomplate` tool. It is a simple tool to render Go templates from the CLI.
+Installation instructions available [here](https://docs.gomplate.ca/installing/).
+
+After installing it, check a successful installation by running:
+
+```sh {"interactive":"false"}
+echo "Hello, {{.Env.NAME}}" | NAME="LMEval" gomplate
+```
+
+You should see
+
+```text
+Hello, LMEval
+```
+
 ## Creating a `DataScienceCluster`
 
 Install a `DataScienceCluster` (DSC) with:
@@ -137,7 +154,7 @@ of available models:
 | `quay.io/ruimvieira/lmeval-assets-flan-glue:latest`         | `google/flan-t5-base`             | nyu-mll/glue           |
 | `quay.io/ruimvieira/lmeval-assets-flan-20newsgroups:latest` | `google/flan-t5-base`             | SetFit/20_newsgroups   |
 
-### Local model, local datasets and builtin tasks
+### Builtin tasks
 
 Create a PVC to hold the models and datasets.
 
@@ -168,7 +185,7 @@ oc delete pod lmeval-downloader -n test
 oc delete pvc lmeval-data -n test
 ```
 
-### Local model, local datasets and unitxt catalog tasks
+### unitxt
 
 > 👉 Delete any previous PVC for models and downloader pods.
 
@@ -208,13 +225,51 @@ oc delete pod lmeval-downloader -n test
 oc delete pvc lmeval-data -n test
 ```
 
-### Local model, local datasets and unitxt custom tasks
+### unitxt (custom)
 
-TBD
+> 👉 Delete any previous PVC for models and downloader pods.
+
+Create a PVC to hold the model and datasets.
+
+```sh {"interactive":"false"}
+oc apply -f resources/00-pvc.yaml -n test
+```
+
+and the downloader pod:
+
+```sh {"interactive":"false"}
+oc apply -f resources/downloader-flan-20newsgroups.yaml -n test
+```
+
+Once the copying has finished, you can deploy the `LMEvalJob` CR now with
+
+```sh {"interactive":"false"}
+cat resources/cr-local-unitxt.yaml | \
+MODEL_NAME="/opt/app-root/src/hf_home/flan" ONLINE=false GPU=true gomplate | \
+oc apply -n test -f -
+```
+
+> __🐌 WARNING__: If not using GPU acceleration, look into the LMEval log and
+> wait a couple of minutes for the first inference. This will be _very slow_, so
+> if after a few inferences you're happy this is progressing with no errors, you
+> can stop here.
+
+Once you are finished, you can tear down this setup by deleting the LMEval job
+
+```sh {"interactive":"false"}
+oc delete lmevaljob lmeval-test -n test
+```
+
+and the assets:
+
+```sh {"interactive":"false","mimeType":""}
+oc delete pod lmeval-downloader -n test
+oc delete pvc lmeval-data -n test
+```
 
 ## Testing local mode (online)
 
-### Online model and datasets, no code execution
+### Builtin tasks
 
 For this example, we use a script. This script allows to deploy a specific model
 and builtin task by using the env var `MODEL_NAME`, `TASK_NAME` and whether to
@@ -241,37 +296,13 @@ MODEL_NAME="google/flan-t5-base" TASK_NAME="arc_easy" GPU=true \
 ./resources/lmeval-job-local-online-builtin.sh
 ```
 
-<details>
-
-<summary>👉 Example of generated LMEval CR</summary>
-
-```yaml
-apiVersion: trustyai.opendatahub.io/v1alpha1
-kind: LMEvalJob
-metadata:
-  name: "lmeval-test"
-  namespace: "test"
-spec:
-  allowOnline: true
-  model: hf
-  modelArgs:
-    - name: pretrained
-      value: "google/flan-t5-base"
-  taskList:
-    taskNames:
-      - "arc_easy"
-  logSamples: true
-```
-
-</details>
-
 Once finished, this LMEval job can be deleted with
 
 ```sh
 oc delete lmevaljob lmeval-test -n test
 ```
 
-### Online model and datasets, no code execution, unitxt
+### unitxt
 
 For this example, we use a script. This script allows to deploy a specific model
 and unitxt card and template by using the env var `CARD`, `TEMPLATE` and whether
@@ -302,54 +333,34 @@ TEMPLATE="templates.classification.multi_class.title" GPU=true \
 ./resources/lmeval-job-local-online-unitxt.sh
 ```
 
-<details>
-
-<summary>👉 Example of generated LMEval CR</summary>
-
-For this example, we simply need the following CR:
-
-```yaml
-apiVersion: trustyai.opendatahub.io/v1alpha1
-kind: LMEvalJob
-metadata:
-  name: "evaljob-sample"
-spec:
-  allowOnline: true
-  model: hf
-  modelArgs:
-    - name: pretrained
-      value: "google/flan-t5-base"
-  taskList:
-    taskRecipes:
-      - card:
-          name: "cards.20_newsgroups_short"
-        template: "templates.classification.multi_class.title"
-  logSamples: true
-
-  pod:
-    container:
-      resources:
-        limits:
-          cpu: "1"
-          memory: 8Gi
-          nvidia.com/gpu: "1"
-        requests:
-          cpu: "1"
-          memory: 8Gi
-          nvidia.com/gpu: "1"
-```
-
-</details>
-
 Once finished, this LMEval job can be deleted with
 
 ```sh
 oc delete lmevaljob lmeval-test -n test
 ```
 
-### Online with code execution
+### unitxt (custom)
 
-TBD
+You can try to use models from the previous section. The script to deploy custom
+`unitxt` tasks takes the arguments:
+
+- `MODEL_NAME`
+- `ONLINE`
+- `GPU`
+
+Example:
+
+```sh {"interactive":"false"}
+cat resources/cr-local-unitxt.yaml | \
+MODEL_NAME="google/flan-t5-base" ONLINE=true GPU=true gomplate  | \
+kubectl apply -n test -f -
+```
+
+```sh {"interactive":"false"}
+oc delete lmevaljob lmeval-test -n test
+```
+
+Once finished, this LMEval job can be deleted with
 
 ## Testing vLLM (offline)
 
@@ -390,341 +401,12 @@ To delete all vLLM resources use:
 kubectl delete all --selector=lmevaltests=vllm -n test
 ```
 
-<details>
-
-<summary>👉 Example of vLLM deployment manifests</summary>
-
-Create a new PVC, as in the previous section:
-
-```sh
-oc apply -f resources/00-pvc.yaml -n test
-```
-
-```yaml
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: lmeval-data
-  namespace: test
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 20Gi
-```
-
-and deploy the downloader pod:
-
-```sh
-oc apply -f resources/downloader-flan-arceasy.yaml -n test
-```
-
-```yaml
-apiVersion: v1
-kind: Pod
-metadata:
-  name: "lmeval-downloader"
-  namespace: "test"
-spec:
-  containers:
-    - name: downloader
-      image: quay.io/ruimvieira/lm-eval-downloader:latest
-      command: ["python", "/app/download.py"]
-      env:
-        - name: MODELS
-          value: "google/flan-t5-base:flan"
-        - name: DATASETS
-          value: "allenai/ai2_arc:ARC-Easy"
-        - name: DESTINATION_PATH
-          value: "/mnt/data"
-        - name: HF_HOME
-          value: "/mnt/data/hf_home"
-      volumeMounts:
-        - name: data-volume
-          mountPath: /mnt/data
-      securityContext:
-        allowPrivilegeEscalation: false
-        runAsNonRoot: true
-        capabilities:
-          drop:
-            - ALL
-        seccompProfile:
-          type: RuntimeDefault
-
-  volumes:
-    - name: data-volume
-      persistentVolumeClaim:
-        claimName: "lmeval-data"
-  restartPolicy: Never
-```
-
-When it's finished, deploy the vLLM model. Start by deploying the storage with:
-
-```sh
-oc apply -f resources/02-vllm-storage.yaml
-```
-
-This will create the following resources: A service account:
-
-```yaml
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: user-one
-  namespace: "test"
-```
-
-and a `Secret`:
-
-```yaml
-apiVersion: v1
-kind: Secret
-metadata:
-  name: aws-connection-phi-3-data-connection
-  namespace: "test"
-  labels:
-    opendatahub.io/dashboard: "true"
-    opendatahub.io/managed: "true"
-  annotations:
-    opendatahub.io/connection-type: s3
-    openshift.io/display-name: Minio Data Connection - Phi3
-data:
-  AWS_ACCESS_KEY_ID: VEhFQUNDRVNTS0VZ
-  AWS_DEFAULT_REGION: dXMtc291dGg=
-  AWS_S3_BUCKET: bGxtcw==
-  AWS_S3_ENDPOINT: aHR0cDovL21pbmlvLXBoaTM6OTAwMA==
-  AWS_SECRET_ACCESS_KEY: VEhFU0VDUkVUS0VZ
-type: Opaque
-```
-
-Create a PVC to hold the model:
-
-```yaml
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: vllm-models-claim
-  namespace: "test"
-spec:
-  accessModes:
-    - ReadWriteOnce
-  volumeMode: Filesystem
-  # storageClassName: gp3-csi
-  resources:
-    requests:
-      storage: 300Gi
-```
-
-and the RBAC:
-
-```yaml
-kind: RoleBinding
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: user-one-view
-  namespace: "test"
-subjects:
-  - kind: ServiceAccount
-    name: user-one
-    namespace: "test"
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: view
-```
-
-Create a `Service`:
-
-```yaml
-apiVersion: v1
-kind: Service
-metadata:
-  name: "minio-phi3"
-  namespace: "test"
-spec:
-  ports:
-    - name: minio-client-port
-      port: 9000
-      protocol: TCP
-      targetPort: 9000
-  selector:
-    app: "minio-phi3"
-```
-
-and the deployment
-
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: phi3-minio-container
-  namespace: "test"
-  labels:
-    app: "minio-phi3"
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: "minio-phi3"
-  template:
-    metadata:
-      labels:
-        app: "minio-phi3"
-        maistra.io/expose-route: "true"
-      name: "minio-phi3"
-    spec:
-      volumes:
-        - name: model-volume
-          persistentVolumeClaim:
-            claimName: vllm-models-claim
-      initContainers:
-        - name: download-model
-          image: quay.io/rgeada/llm_downloader:latest
-          securityContext:
-            fsGroup: 1001
-          command:
-            - bash
-            - -c
-            - |
-                model="microsoft/Phi-3-mini-4k-instruct"
-                echo "starting download"
-                /tmp/venv/bin/huggingface-cli download $model --local-dir /mnt/models/llms/$(basename $model)
-                echo "Done!"
-          resources:
-            limits:
-              memory: "2Gi"
-              cpu: "2"
-          volumeMounts:
-            - mountPath: "/mnt/models/"
-              name: model-volume
-      containers:
-        - args:
-            - server
-            - /models
-          env:
-            - name: MINIO_ACCESS_KEY
-              value: THEACCESSKEY
-            - name: MINIO_SECRET_KEY
-              value: THESECRETKEY
-          image: quay.io/trustyai/modelmesh-minio-examples:latest
-          name: minio
-          securityContext:
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop:
-                - ALL
-            seccompProfile:
-              type: RuntimeDefault
-          volumeMounts:
-            - mountPath: "/models/"
-              name: model-volume
-```
-
 Wait for the minio container to finish, and finally, create the
 `InferenceService`:
 
 ```sh
 oc apply -f resources/02-vllm-serving.yaml -n test
 ```
-
-This will create:
-
-```yaml
-apiVersion: serving.kserve.io/v1beta1
-kind: InferenceService
-metadata:
-  name: phi-3
-  namespace: "test"
-  labels:
-    opendatahub.io/dashboard: "true"
-  annotations:
-    openshift.io/display-name: phi-3
-    serving.knative.openshift.io/enablePassthrough: "true"
-    sidecar.istio.io/inject: "true"
-    sidecar.istio.io/rewriteAppHTTPProbers: "true"
-spec:
-  predictor:
-    maxReplicas: 1
-    minReplicas: 1
-    model:
-      modelFormat:
-        name: vLLM
-      name: ""
-      resources:
-        limits:
-          cpu: "1"
-          memory: "8Gi"
-          nvidia.com/gpu: "1"
-        requests:
-          cpu: "1"
-          memory: "8Gi"
-          nvidia.com/gpu: "1"
-      runtime: "vllm-runtime-phi-3"
-      storage:
-        key: aws-connection-phi-3-data-connection
-        path: Phi-3-mini-4k-instruct
-    tolerations:
-      - effect: NoSchedule
-        key: nvidia.com/gpu
-        operator: Exists
-```
-
-and the `ServingRuntime`
-
-```yaml
-apiVersion: serving.kserve.io/v1alpha1
-kind: ServingRuntime
-metadata:
-  name: "vllm-runtime-phi-3"
-  namespace: "test"
-  annotations:
-    openshift.io/display-name: vLLM ServingRuntime for KServe - Phi-3
-    opendatahub.io/template-display-name: vLLM ServingRuntime for KServe - Phi-3
-    opendatahub.io/recommended-accelerators: '["nvidia.com/gpu"]'
-  labels:
-    opendatahub.io/dashboard: "true"
-spec:
-  annotations:
-    prometheus.io/path: /metrics
-    prometheus.io/port: "8080"
-    openshift.io/display-name: vLLM ServingRuntime for KServe - Phi-3
-  labels:
-    opendatahub.io/dashboard: "true"
-  containers:
-    - args:
-        - "--port=8080"
-        - "--model=/mnt/models"
-        - "--served-model-name=phi-3"
-        - "--dtype=float16"
-        - "--enforce-eager"
-      command:
-        - python
-        - "-m"
-        - vllm.entrypoints.openai.api_server
-      env:
-        - name: HF_HOME
-          value: /tmp/hf_home
-      image: "quay.io/opendatahub/vllm:stable-849f0f5"
-      name: kserve-container
-      ports:
-        - containerPort: 8080
-          protocol: TCP
-      volumeMounts:
-        - mountPath: /dev/shm
-          name: shm
-  multiModel: false
-  supportedModelFormats:
-    - autoSelect: true
-      name: vLLM
-  volumes:
-    - emptyDir:
-        medium: Memory
-        sizeLimit: 2Gi
-      name: shm
-```
-
-</details>
 
 On vLLM is running, het the model's URL with (here we will assume
 `MODEL_NAME="phi-3`)
