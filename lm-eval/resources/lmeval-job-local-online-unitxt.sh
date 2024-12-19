@@ -11,7 +11,8 @@ BASE_YAML="
 apiVersion: trustyai.opendatahub.io/v1alpha1
 kind: LMEvalJob
 metadata:
-  name: \"evaljob-sample\"
+  name: \"lmeval-test\"
+  namespace: \"test\"
 spec:
   allowOnline: true
   model: hf
