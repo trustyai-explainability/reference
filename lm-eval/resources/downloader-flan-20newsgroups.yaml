@@ -7,7 +7,7 @@ spec:
   containers:
     - name: downloader
       image: quay.io/ruimvieira/lm-eval-downloader:latest
-      command: [ "python", "/app/download.py" ]
+      command: ["python", "/app/download.py"]
       env:
         - name: MODELS
           value: "google/flan-t5-base:flan"
@@ -21,8 +21,10 @@ spec:
         - name: data-volume
           mountPath: /mnt/data
       securityContext:
-        allowPrivilegeEscalation: false
+        fsGroup: 1000
+        runAsUser: 1000
         runAsNonRoot: true
+        allowPrivilegeEscalation: false
         capabilities:
           drop:
             - ALL

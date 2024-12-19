@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: lmeval-copy
+  name: lmeval-downloader
   namespace: "test"
 spec:
   securityContext:
