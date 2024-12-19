@@ -147,6 +147,10 @@ spec:
       protocol: TCP
       port: 8033
       targetPort: 8033
+    - name: health
+      protocol: TCP
+      port: 8034
+      targetPort: 8034
   internalTrafficPolicy: Cluster
   # type: LoadBalancer
   # ipFamilyPolicy: SingleStack
@@ -182,3 +186,23 @@ spec:
     termination: edge
     insecureEdgeTerminationPolicy: Redirect
   wildcardPolicy: None
+---
+kind: Route
+apiVersion: route.openshift.io/v1
+metadata:
+  name: guardrails-nlp-health
+  labels:
+    app: fmstack-nlp
+    component: fms-orchestr8-nlp
+spec:
+  to:
+    kind: Service
+    name: fms-orchestr8-nlp
+    weight: 100
+  port:
+    targetPort: health
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+  wildcardPolicy: None
+---  

@@ -104,12 +104,10 @@ data:
         port: 8085
     detectors:
       hap:
-        type: text_generation
+        type: text_contents
         service:
-          hostname: llm-predictor.test.svc.cluster.local
-          port: 8085
-          # hostname: guardrails-detector-ibm-hap-predictor.test.svc.cluster.local
-          # port: 8000
+          hostname: guardrails-detector-ibm-hap-predictor.test.svc.cluster.local
+          port: 8000
           # hostname: new-route-test.apps.rosa.trustyai-mac.bd9q.p3.openshiftapps.com
           # port: 80
           # hostname: https://guardrails-detector-ibm-hap-test.example.com
@@ -150,6 +148,10 @@ spec:
       protocol: TCP
       port: 8033
       targetPort: 8033
+    - name: health
+      protocol: TCP
+      port: 8034
+      targetPort: 8034
   internalTrafficPolicy: Cluster
   # type: LoadBalancer
   # ipFamilyPolicy: SingleStack
@@ -185,3 +187,23 @@ spec:
     termination: edge
     insecureEdgeTerminationPolicy: Redirect
   wildcardPolicy: None
+---
+kind: Route
+apiVersion: route.openshift.io/v1
+metadata:
+  name: guardrails-nlp-health
+  labels:
+    app: fmstack-nlp
+    component: fms-orchestr8-nlp
+spec:
+  to:
+    kind: Service
+    name: fms-orchestr8-nlp
+    weight: 100
+  port:
+    targetPort: health
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+  wildcardPolicy: None
+---  

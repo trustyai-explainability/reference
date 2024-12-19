@@ -41,6 +41,16 @@ curl -v http://localhost:8034/info
 
 If all deployed services are displaying as `HEALTHY`, you can use the orchestrtator api for guardrailed text generation, e.g. 
 
+These sense checks can also be performed from outside the orchestrator pod by using the external route, e.g.
+
+```bash
+curl -v https://guardrails-nlp-health-test.apps.rosa.trustyai-mac.bd9q.p3.openshiftapps.com/health
+```
+
+```bash
+curl -v https://guardrails-nlp-health-test.apps.rosa.trustyai-mac.bd9q.p3.openshiftapps.com/info
+```
+
 ## FMS Orchestrator API
 
 The orchestrator API documentation is available [here](https://foundation-model-stack.github.io/fms-guardrails-orchestrator/?urls.primaryName=Orchestrator+API#/)
