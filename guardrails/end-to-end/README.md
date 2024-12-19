@@ -21,7 +21,7 @@ Note that <SUBDIRECTORY_NAME> is usually `grpc` unless you are inside the `llm-c
 
 ## Sense-checking the orchestrator output
 
-From within the orchestrator pod, execute the following command to get inside the pod:
+From within the terminal execute the following command to get inside the pod:
 
 ```bash
 oc exec -it -n test deployments/fms-orchestr8-nlp /bin/bash
