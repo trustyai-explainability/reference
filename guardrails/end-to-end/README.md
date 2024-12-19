@@ -17,7 +17,7 @@ Once you have navigated to the appropriate subdirectory, run the following comma
 oc apply -k <SUBDIRECTORY_NAME>
 ```
 
-Note that <UBDIRECTORY_NAME> is usually `grpc` unless you are inside the `llm-caikit-tgis`, where there is an option of either `grpc` or `http` or if you are inside the `llm-vllm` where the option is `http`.
+Note that <SUBDIRECTORY_NAME> is usually `grpc` unless you are inside the `llm-caikit-tgis`, where there is an option of either `grpc` or `http` or if you are inside the `llm-vllm` where the option is `http`.
 
 ## Sense-checking the orchestrator output
 
@@ -43,12 +43,18 @@ If all deployed services are displaying as `HEALTHY`, you can use the orchestrta
 
 These sense checks can also be performed from outside the orchestrator pod by using the external route, e.g.
 
-```bash
-curl -v https://guardrails-nlp-health-test.apps.rosa.trustyai-mac.bd9q.p3.openshiftapps.com/health
+- get the external routes:
+
+```bash 
+GUARDRAILS_HEALTH_ROUTE=$(oc get routes guardrails-nlp-health -o jsonpath='{.spec.host}')
 ```
 
 ```bash
-curl -v https://guardrails-nlp-health-test.apps.rosa.trustyai-mac.bd9q.p3.openshiftapps.com/info
+curl -v https://$GUARDRAILS_HEALTH_ROUTE/health
+```
+
+```bash
+curl -v https://$GUARDRAILS_HEALTH_ROUTE/info
 ```
 
 ## FMS Orchestrator API
@@ -76,6 +82,10 @@ curl -v -H "Content-Type: application/json" --data '{
 It is feasible to send the request to the orchestrator using its external route, e.g.
 
 ```bash
+GUARDRAILS_ROUTE=$(oc get routes guardrails-nlp -o jsonpath='{.spec.host}')
+```
+
+```bash
 curl -v -H "Content-Type: application/json" --data '{
     "model_id": "flan-t5-small",
     "inputs": "You dotard, I really hate this stuff",
@@ -88,7 +98,7 @@ curl -v -H "Content-Type: application/json" --data '{
             "models": {}
         }
     }
-}' https://guardrails-nlp-test.apps.rosa.trustyai-mac.bd9q.p3.openshiftapps.com/api/v1/task/classification-with-text-generation
+}' "https://$GUARDRAILS_ROUTE/api/v1/task/classification-with-text-generation"
 ```
 
 ### api/v2/chat/completions-detection
@@ -123,7 +133,7 @@ curl -X 'POST' \
 
 ```bash
 curl -X 'POST' \
-  'https://guardrails-nlp-test.apps.rosa.trustyai-mac.bd9q.p3.openshiftapps.com/api/v2/chat/completions-detection' \
+  "https://$GUARDRAILS_ROUTE/api/v2/chat/completions-detection" \
   -H 'accept: application/json' \
   -H 'Content-Type: application/json' \
   -d '{
@@ -168,7 +178,7 @@ curl -X 'POST' \
 
 ```bash
 curl -X 'POST' \
-  'https://guardrails-nlp-test.apps.rosa.trustyai-mac.bd9q.p3.openshiftapps.com/api/v2/text/detection/content' \
+  "https://$GUARDRAILS_ROUTE/api/v2/text/detection/content" \
   -H 'accept: application/json' \
   -H 'Content-Type: application/json' \
   -d '{
