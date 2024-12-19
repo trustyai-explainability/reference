@@ -10,7 +10,7 @@ spec:
       type: RuntimeDefault
   containers:
     - name: data
-      image: "quay.io/ruimvieira/lmeval-assets-flan-20newsgroups:latest"
+      image: "quay.io/trustyai_testing/lmeval-assets-flan-20newsgroups:latest"
       command: ["/bin/sh", "-c", "cp -r /mnt/data/. /mnt/pvc/"]
       securityContext:
         runAsUser: 1000
