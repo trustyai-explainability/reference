@@ -17,10 +17,8 @@ spec:
     - name: pretrained
       value: "{{.Env.MODEL_NAME}}"
   taskList:
-    taskRecipes:
-      - card:
-          name: "cards.20_newsgroups_short"
-        template: "templates.classification.multi_class.title"
+    taskNames:
+      - "{{.Env.TASK_NAME}}"
   logSamples: true
   {{- if not $online }}
   offline:
@@ -32,13 +30,13 @@ spec:
       {{- if $gpu }}
       resources:
         limits:
-          cpu: "1"
+          cpu: '1'
           memory: 8Gi
-          nvidia.com/gpu: "1"
+          nvidia.com/gpu: '1'
         requests:
-          cpu: "1"
+          cpu: '1'
           memory: 8Gi
-          nvidia.com/gpu: "1"
+          nvidia.com/gpu: '1'
       {{- end }}
       env:
         - name: HF_HUB_VERBOSITY

@@ -158,13 +158,13 @@ of available models:
 
 Create a PVC to hold the models and datasets.
 
-```sh
-oc apply -f resources/00-pvc.yaml -n test
+```sh {"interactive":"false"}
+oc apply -f resources/pvc.yaml -n test
 ```
 
 Deploy a Pod that will copy the models and datasets to the PVC:
 
-```sh
+```sh {"interactive":"false"}
 oc apply -f resources/disconnected-flan-arceasy.yaml -n test
 ```
 
@@ -173,7 +173,8 @@ Wait for the Pod to complete.
 You can now deploy an LMEval CR like
 
 ```sh
-oc apply -f resources/01-lmeval-local-offline-builtin.yaml -n test
+cat resources/cr-local-builtin.yaml | MODEL_NAME="/opt/app-root/src/hf_home/flan" TASK_NAME="arc_easy" GPU=true gomplate | \
+oc apply -n test -f -
 ```
 
 Once you're done with the LMEval job, you can delete everything so we can move
@@ -192,7 +193,7 @@ oc delete pvc lmeval-data -n test
 Create a PVC to hold the model and datasets.
 
 ```sh {"interactive":"false"}
-oc apply -f resources/00-pvc.yaml -n test
+oc apply -f resources/pvc.yaml -n test
 ```
 
 and the downloader pod:
@@ -203,8 +204,9 @@ oc apply -f resources/downloader-flan-20newsgroups.yaml -n test
 
 Once the copying has finished, you can deploy the `LMEvalJob` CR now with
 
-```sh
-oc apply -f resources/01-lmeval-local-offline-unitxt.yaml
+```sh {"interactive":"false"}
+cat resources/cr-local-unitxt.yaml | MODEL_NAME="/opt/app-root/src/hf_home/flan" GPU=true gomplate | \
+oc apply -n test -f -
 ```
 
 > __🐌 WARNING__: If not using GPU acceleration, look into the LMEval log and
@@ -232,7 +234,7 @@ oc delete pvc lmeval-data -n test
 Create a PVC to hold the model and datasets.
 
 ```sh {"interactive":"false"}
-oc apply -f resources/00-pvc.yaml -n test
+oc apply -f resources/pvc.yaml -n test
 ```
 
 and the downloader pod:
@@ -244,7 +246,7 @@ oc apply -f resources/downloader-flan-20newsgroups.yaml -n test
 Once the copying has finished, you can deploy the `LMEvalJob` CR now with
 
 ```sh {"interactive":"false"}
-cat resources/cr-local-unitxt.yaml | \
+cat resources/cr-local-unitxt-custom.yaml | \
 MODEL_NAME="/opt/app-root/src/hf_home/flan" ONLINE=false GPU=true gomplate | \
 oc apply -n test -f -
 ```
@@ -291,14 +293,14 @@ Some combinations of models/tasks to try:
 
 As an example:
 
-```sh
-MODEL_NAME="google/flan-t5-base" TASK_NAME="arc_easy" GPU=true \
-./resources/lmeval-job-local-online-builtin.sh
+```sh {"interactive":"false"}
+cat resources/cr-local-builtin.yaml | MODEL_NAME="google/flan-t5-base" ONLINE=true TASK_NAME="arc_easy" GPU=true gomplate | \
+oc apply -n test -f -
 ```
 
 Once finished, this LMEval job can be deleted with
 
-```sh
+```sh {"interactive":"false"}
 oc delete lmevaljob lmeval-test -n test
 ```
 
@@ -351,7 +353,7 @@ You can try to use models from the previous section. The script to deploy custom
 Example:
 
 ```sh {"interactive":"false"}
-cat resources/cr-local-unitxt.yaml | \
+cat resources/cr-local-unitxt-custom.yaml | \
 MODEL_NAME="google/flan-t5-base" ONLINE=true GPU=true gomplate  | \
 kubectl apply -n test -f -
 ```
@@ -392,7 +394,7 @@ Once the minio pod is running, deploy the inference service with (<u>make sure
 the name matches `MODEL_NAME` used above</u>)
 
 ```sh
-MODEL_NAME="flan" ./resources/vllm-inference-service.sh
+MODEL_NAME="phi-3" ./resources/vllm-inference-service.sh
 ```
 
 To delete all vLLM resources use:
@@ -502,6 +504,65 @@ spec:
             secretKeyRef:
               name: "user-one-token-hm4gb" # replace with your Secret name
               key: token
+```
+
+If you want to an internal endpoint, first get the service's internal endpoint usin the `<MODEL_NAME>.<NAMESPACE>.svc.cluster.local` syntax, i.e., for the previous example:
+
+```text
+phi-3.test.svc.cluster.local
+```
+
+The LMEval Job CR will be similar, with a couple of changes, namely:
+
+- The endpoint
+- Passing a CA cert location
+
+For this example the root CA included in the pod can used.
+
+
+```yaml
+apiVersion: trustyai.opendatahub.io/v1alpha1
+kind: LMEvalJob
+metadata:
+  name: "lmeval-test"
+  namespace: "test"
+spec:
+  model: local-completions
+  taskList:
+    taskNames:
+      - "arc_easy"
+  logSamples: true
+  batchSize: "1"
+  modelArgs:
+    - name: model
+      value: "phi-3" # <- replace with your MODEL_ID
+    - name: base_url
+      value: "https://phi-3.test.svc.cluster.local/v1/completions" # <- replace with your MODEL_URL/v1/completions
+    - name: num_concurrent
+      value: "1"
+    - name: max_retries
+      value: "3"
+    - name: tokenized_requests
+      value: "False"
+    - name: tokenizer
+      value: "/opt/app-root/src/hf_home/granite"
+    - name: verify_certificate
+      value: "/var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt" # <- Add the root cert
+  offline:
+    storage:
+      pvcName: "lmeval-data"
+  pod:
+    container:
+      env:
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: "user-one-token-hm4gb" # replace with your Secret name
+              key: token
+```
+
+```yaml
+
 ```
 
 Once you are done, you delete the LMEval with
@@ -665,7 +726,7 @@ Install the image containing the necessary model and dataset, by first creating
 a PVC:
 
 ```sh
-oc apply -f resources/00-pvc.yaml -n test
+oc apply -f resources/pvc.yaml -n test
 ```
 
 And then the LMEval assets downloader:
@@ -699,7 +760,7 @@ Install the image containing the necessary model and dataset, by first creating
 a PVC:
 
 ```sh
-oc apply -f resources/00-pvc.yaml -n test
+oc apply -f resources/pvc.yaml -n test
 ```
 
 And then the LMEval assets downloader:
@@ -732,7 +793,7 @@ Install the image containing the necessary model and dataset, by first creating
 a PVC:
 
 ```sh
-oc apply -f resources/00-pvc.yaml -n test
+oc apply -f resources/pvc.yaml -n test
 ```
 
 And then the LMEval assets downloader:
@@ -810,7 +871,7 @@ Install the image containing the necessary model and dataset, by first creating
 a PVC:
 
 ```sh
-oc apply -f resources/00-pvc.yaml -n test
+oc apply -f resources/pvc.yaml -n test
 ```
 
 And then the LMEval assets downloader:
@@ -843,7 +904,7 @@ Install the image containing the necessary model and dataset, by first creating
 a PVC:
 
 ```sh
-oc apply -f resources/00-pvc.yaml -n test
+oc apply -f resources/pvc.yaml -n test
 ```
 
 And then the LMEval assets downloader:
@@ -892,7 +953,7 @@ Install the image containing the necessary model and dataset, by first creating
 a PVC:
 
 ```sh
-oc apply -f resources/00-pvc.yaml -n test
+oc apply -f resources/pvc.yaml -n test
 ```
 
 And then the LMEval assets downloader:
@@ -951,7 +1012,7 @@ Install the image containing the necessary model and dataset, by first creating
 a PVC:
 
 ```sh
-oc apply -f resources/00-pvc.yaml -n test
+oc apply -f resources/pvc.yaml -n test
 ```
 
 And then the LMEval assets downloader:
