@@ -387,8 +387,7 @@ and then
 oc apply -f resources/disconnected-flan-arceasy.yaml -n test
 ```
 
-To automate the installation of a vLLM model use the script
-`resources/vllm-deploy.sh`. This script takes the following env vars as
+The installation of the vLLM storage resources takes the following env vars as
 configuration:
 
 - `MODEL_REPO`, this is a HuggingFace model repo of the model to deploy, e.g.
@@ -413,7 +412,7 @@ MODEL_NAME="phi-3" AUTH="false" gomplate | \
 kubectl apply -n test -f -
 ```
 
-On vLLM is running, het the model's URL with (here we will assume
+Once vLLM is running, get the model's URL with (here we will assume
 `MODEL_NAME="phi-3`)
 
 ```sh {"name":"MODEL_URL"}
