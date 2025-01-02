@@ -375,6 +375,18 @@ Once finished, this LMEval job can be deleted with
 
 > 👉 Delete any previous PVC for models and downloader pods.
 
+As with the other "offline" examples, start by creating the PVC and pods that populate that PVC. i.e.:
+
+```sh
+oc apply -f resources/pvc.yaml -n test
+```
+
+and then
+
+```sh
+oc apply -f resources/disconnected-flan-arceasy.yaml -n test
+```
+
 To automate the installation of a vLLM model use the script
 `resources/vllm-deploy.sh`. This script takes the following env vars as
 configuration:
@@ -387,40 +399,33 @@ configuration:
 Example:
 
 ```sh
-MODEL_REPO="microsoft/Phi-3-mini-4k-instruct" MODEL_NAME="phi-3" ./resources/vllm-deploy.sh
+cat resources/vllm-storage.template.yaml | \
+MODEL_REPO="microsoft/Phi-3-mini-4k-instruct" MODEL_NAME="phi-3" gomplate | \
+kubectl apply -n test -f -
 ```
 
 Once the minio pod is running, deploy the inference service with (<u>make sure
 the name matches `MODEL_NAME` used above</u>)
 
 ```sh
-MODEL_NAME="phi-3" ./resources/vllm-inference-service.sh
-```
-
-To delete all vLLM resources use:
-
-```sh
-kubectl delete all --selector=lmevaltests=vllm -n test
-```
-
-Wait for the minio container to finish, and finally, create the
-`InferenceService`:
-
-```sh
-oc apply -f resources/02-vllm-serving.yaml -n test
+cat resources/vllm-serving.template.yaml | \
+MODEL_NAME="phi-3" AUTH="false" gomplate | \
+kubectl apply -n test -f -
 ```
 
 On vLLM is running, het the model's URL with (here we will assume
 `MODEL_NAME="phi-3`)
 
-```sh
-export MODEL_URL=$(oc get isvc phi-3 -n test -o jsonpath='{.status.url}')
+```sh {"name":"MODEL_URL"}
+export MODEL_URL=$(oc get ksvc phi-3 -n test -o jsonpath='{.status.url}')
+echo $MODEL_URL
 ```
 
 Get the model's id with
 
-```sh
-export MODEL_ID=$(curl -ks "$MODEL_URL/v1/models" | jq -r '.data[0].id')
+```sh {"name":"MODEL_ID"}
+export MODEL_ID=$(curl -ks "${MODEL_URL}/v1/models" | jq -r '.data[0].id')
+echo $MODEL_ID
 ```
 
 Try a request with
@@ -473,6 +478,8 @@ kind: LMEvalJob
 metadata:
   name: "lmeval-test"
   namespace: "test"
+  labels:
+    lmevaltests: "vllm"
 spec:
   model: local-completions
   taskList:
@@ -492,7 +499,7 @@ spec:
     - name: tokenized_requests
       value: "False"
     - name: tokenizer
-      value: "/opt/app-root/src/hf_home/granite"
+      value: "/opt/app-root/src/hf_home/flan"
   offline:
     storage:
       pvcName: "lmeval-data"
@@ -502,7 +509,7 @@ spec:
         - name: OPENAI_API_KEY
           valueFrom:
             secretKeyRef:
-              name: "user-one-token-hm4gb" # replace with your Secret name
+              name: "user-one-token-8ppxt" # replace with your Secret name
               key: token
 ```
 
@@ -561,14 +568,10 @@ spec:
               key: token
 ```
 
-```yaml
-
-```
-
-Once you are done, you delete the LMEval with
+Once you are done, you delete all the above resources with
 
 ```sh
-
+kubectl delete all --selector=lmevaltests=vllm -n test
 ```
 
 ### Remote model with unitxt catalog tasks
