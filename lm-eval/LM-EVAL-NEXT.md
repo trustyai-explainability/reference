@@ -372,18 +372,20 @@ Once finished, this LMEval job can be deleted with
 > work the same **with** authentication, the only change needed is to add
 > `security.opendatahub.io/enable-auth: 'true'` to the `InferenceService
 > annotations. An example will be given at the end.
+>
+> This can be done by setting `AUTH=true` when applying the `InferenceService`.
 
 > 👉 Delete any previous PVC for models and downloader pods.
 
 As with the other "offline" examples, start by creating the PVC and pods that populate that PVC. i.e.:
 
-```sh
+```sh {"interactive":"false","promptEnv":"never"}
 oc apply -f resources/pvc.yaml -n test
 ```
 
 and then
 
-```sh
+```sh {"interactive":"false","promptEnv":"never"}
 oc apply -f resources/disconnected-flan-arceasy.yaml -n test
 ```
 
@@ -397,18 +399,40 @@ configuration:
 
 Example:
 
+Set the `MODEL_NAME`
+
+```sh {"interactive":"false","name":"MODEL_NAME","promptEnv":"never"}
+export MODEL_NAME="phi-3" && echo -n "${MODEL_NAME}"
+```
+
+And the `MODEL_REPO`
+
+```sh {"interactive":"false","name":"MODEL_REPO","promptEnv":"never"}
+export MODEL_REPO="microsoft/Phi-3-mini-4k-instruct" && echo -n "${MODEL_REPO}"
+```
+
 ```sh
 cat resources/vllm-storage.template.yaml | \
-MODEL_REPO="microsoft/Phi-3-mini-4k-instruct" MODEL_NAME="phi-3" gomplate | \
+MODEL_NAME="$MODEL_NAME" MODEL_REPO="$MODEL_REPO" gomplate | \
 kubectl apply -n test -f -
 ```
 
 Once the minio pod is running, deploy the inference service with (<u>make sure
-the name matches `MODEL_NAME` used above</u>)
+the name matches `MODEL_NAME` used above</u>). Without authentication:
 
 ```sh
+# Without authentication
 cat resources/vllm-serving.template.yaml | \
-MODEL_NAME="phi-3" AUTH="false" gomplate | \
+MODEL_NAME="$MODEL_NAME" AUTH="false" gomplate | \
+kubectl apply -n test -f -
+```
+
+Alternatively, **with** authentication:
+
+```sh
+# With authentication
+cat resources/vllm-serving.template.yaml | \
+MODEL_NAME="$MODEL_NAME" AUTH="true" gomplate | \
 kubectl apply -n test -f -
 ```
 
@@ -416,25 +440,31 @@ Once vLLM is running, get the model's URL with (here we will assume
 `MODEL_NAME="phi-3`)
 
 ```sh {"name":"MODEL_URL"}
-export MODEL_URL=$(oc get ksvc phi-3 -n test -o jsonpath='{.status.url}')
-echo $MODEL_URL
+export MODEL_URL=$(oc get isvc $MODEL_NAME -n test -o jsonpath='{.status.url}') && \
+echo -n ${MODEL_URL}
 ```
 
 Get the model's id with
 
 ```sh {"name":"MODEL_ID"}
-export MODEL_ID=$(curl -ks "${MODEL_URL}/v1/models" | jq -r '.data[0].id')
-echo $MODEL_ID
+export MODEL_ID=$(curl -ks "${MODEL_URL}/v1/models" | jq -r '.data[0].id') && \
+echo -n ${MODEL_ID}
+```
+
+Get the model's token with
+
+```sh {"interactive":"false","name":"SECRET_NAME","promptEnv":"never"}
+export SECRET_NAME=$(oc get secrets -n test -o custom-columns=NAME:.metadata.name | grep user-one-token) && \
+echo -n ${SECRET_NAME}
 ```
 
 Try a request with
 
-```sh
-```shell
+```sh {"interactive":"false","promptEnv":"never"}
 curl -ks $MODEL_URL/v1/chat/completions\
    -H "Content-Type: application/json" \
    -d "{
-    \"model\": \"$MODEL_ID\",
+    \"model\": \"${MODEL_ID}\",
     \"messages\": [{\"role\": \"user\", \"content\": \"How are you?\"}],
    \"temperature\":0
    }"
@@ -470,6 +500,14 @@ You get a response similar to
 ```
 
 We can now deploy the CR:
+
+```sh
+cat resources/vllm-cr.template.yaml | \
+TASK_NAME="arc_easy" MODEL_NAME="$MODEL_ID" \
+URL="$MODEL_URL" TOKENIZER_NAME="/opt/app-root/src/hf_home/flan" \
+SECRET_NAME="$SECRET_NAME" OFFLINE="true" gomplate | \
+kubectl apply -n test -f -
+```
 
 ```yaml
 apiVersion: trustyai.opendatahub.io/v1alpha1
@@ -514,8 +552,9 @@ spec:
 
 If you want to an internal endpoint, first get the service's internal endpoint usin the `<MODEL_NAME>.<NAMESPACE>.svc.cluster.local` syntax, i.e., for the previous example:
 
-```text
-phi-3.test.svc.cluster.local
+```sh {"interactive":"false","name":"MODEL_URL","promptEnv":"never"}
+export MODEL_URL="https://${MODEL_NAME}.test.svc.cluster.local" && \
+echo -n ${MODEL_URL}
 ```
 
 The LMEval Job CR will be similar, with a couple of changes, namely:
@@ -523,8 +562,17 @@ The LMEval Job CR will be similar, with a couple of changes, namely:
 - The endpoint
 - Passing a CA cert location
 
-For this example the root CA included in the pod can used.
+For this example the root CA included in the pod can used. e.g.
 
+```sh {"interactive":"false","promptEnv":"never"}
+cat resources/vllm-cr.template.yaml | \
+TASK_NAME="arc_easy" MODEL_NAME="$MODEL_ID" \
+URL="$MODEL_URL" TOKENIZER_NAME="/opt/app-root/src/hf_home/flan" \
+SECRET_NAME="$SECRET_NAME" OFFLINE="true" CERT="true" gomplate | \
+kubectl apply -n test -f -
+```
+
+This will generate a CR similar to:
 
 ```yaml
 apiVersion: trustyai.opendatahub.io/v1alpha1
@@ -567,7 +615,13 @@ spec:
               key: token
 ```
 
-Once you are done, you delete all the above resources with
+Once you are done, you can delete LMEval Job with:
+
+```sh
+oc delete lmevaljob lmeval-test -n test
+```
+
+Or delete all the above resources with:
 
 ```sh
 kubectl delete all --selector=lmevaltests=vllm -n test
@@ -585,11 +639,12 @@ kubectl delete all --selector=lmevaltests=vllm -n test
 > work the same **with** authentication, the only change needed is to add
 > `security.opendatahub.io/enable-auth: 'true'` to the `InferenceService
 > annotations. An example will be given at the end.
+>
+> This can be done by setting `AUTH=true` when applying the `InferenceService`.
 
 > 👉 Delete any previous PVC for models and downloader pods.
 
-To automate the installation of a vLLM model use the script
-`resources/vllm-deploy.sh`. This script takes the following env vars as
+To automate the installation of a vLLM model use the following command. This script takes the following env vars as
 configuration:
 
 - `MODEL_REPO`, this is a HuggingFace model repo of the model to deploy, e.g.
@@ -599,36 +654,62 @@ configuration:
 
 Example:
 
-```sh
-MODEL_REPO="microsoft/Phi-3-mini-4k-instruct" MODEL_NAME="phi-3" ./resources/vllm-deploy.sh
+Set the `MODEL_NAME`
+
+```sh {"interactive":"false","name":"MODEL_NAME","promptEnv":"never"}
+export MODEL_NAME="phi-3" && echo -n "${MODEL_NAME}"
+```
+
+And the `MODEL_REPO`
+
+```sh {"interactive":"false","name":"MODEL_REPO","promptEnv":"never"}
+export MODEL_REPO="microsoft/Phi-3-mini-4k-instruct" && echo -n "${MODEL_REPO}"
+```
+
+```sh {"interactive":"false","name":"","promptEnv":"never"}
+cat resources/vllm-storage.template.yaml | \
+MODEL_NAME="$MODEL_NAME" MODEL_REPO="$MODEL_REPO" gomplate | \
+kubectl apply -n test -f -
 ```
 
 Once the minio pod is running, deploy the inference service with (<u>make sure
-the name matches `MODEL_NAME` used above</u>)
+the name matches `MODEL_NAME` used above</u>). Without authentication:
 
-```sh
-MODEL_NAME="phi-3" ./resources/vllm-inference-service.sh
+```sh {"interactive":"false","promptEnv":"never"}
+# Without authentication
+cat resources/vllm-serving.template.yaml | \
+MODEL_NAME="$MODEL_NAME" AUTH="false" gomplate | \
+kubectl apply -n test -f -
+```
+
+Alternatively, **with** authentication:
+
+```sh {"interactive":"false","promptEnv":"never"}
+# With authentication
+cat resources/vllm-serving.template.yaml | \
+MODEL_NAME="$MODEL_NAME" AUTH="true" gomplate | \
+kubectl apply -n test -f -
 ```
 
 Once vLLM is running, het the model's URL with (here we will assume
 `MODEL_NAME="phi-3`)
 
-```sh {"interactive":"false","mimeType":"text/plain","name":"MODEL_URL","terminalRows":"1"}
-export MODEL_URL=$(oc get isvc phi-3 -n test -o jsonpath='{.status.url}')
+```sh {"interactive":"false","mimeType":"text/plain","name":"MODEL_URL","promptEnv":"never","terminalRows":"1"}
+export MODEL_URL=$(oc get isvc $MODEL_NAME -n test -o jsonpath='{.status.url}') && \
 echo -n ${MODEL_URL}
 ```
 
 Get the model's id with
 
 ```sh {"interactive":"false","mimeType":"text/plain","name":"MODEL_ID","terminalRows":"1"}
-export MODEL_ID=$(curl -ks "$MODEL_URL/v1/models" | jq -r '.data[0].id')
+export MODEL_ID=$(curl -ks "${MODEL_URL}/v1/models" | jq -r '.data[0].id') && \
 echo -n ${MODEL_ID}
 ```
 
 Get the model's token with
 
 ```sh {"interactive":"false","mimeType":"text/plain","name":"SECRET_NAME","terminalRows":"1"}
-export SECRET_NAME=$(oc get secrets -n test -o custom-columns=NAME:.metadata.name | grep user-one-token)
+export SECRET_NAME=$(oc get secrets -n test -o custom-columns=NAME:.metadata.name | grep user-one-token) && \
 echo -n ${SECRET_NAME}
 ```
 
@@ -685,12 +766,11 @@ We can now deploy the CR using a script that needs:
 Example:
 
 ```sh
-TASK_NAME="arc_easy" \
-MODEL_NAME=${MODEL_ID} \
-URL=${MODEL_URL} \
+cat resources/vllm-cr.template.yaml | \
+TASK_NAME="arc_easy" MODEL_NAME="$MODEL_ID" URL="$MODEL_URL" \
 TOKENIZER_NAME="google/flan-t5-base" \
-SECRET_NAME=${SECRET_NAME} \
-./resources/vllm-lmeval-online-cr-builtin.sh
+SECRET_NAME="$SECRET_NAME" gomplate | \
+kubectl apply -n test -f -
 ```
 
 Once you are done, you delete the LMEval with
@@ -851,7 +931,7 @@ spec:
   logSamples: true
   offline:
     storage:
-      pvcName: "lmeval-data"`
+      pvcName: "lmeval-data"
 ```
 
 Once you're done with the LMEval job, you can delete everything so we can move
