@@ -26,8 +26,9 @@
 
 ## Pre-flight
 
-Some of these examples require the `gomplate` tool. It is a simple tool to render Go templates from the CLI.
-Installation instructions available [here](https://docs.gomplate.ca/installing/).
+Some of these examples require the `gomplate` tool. It is a simple tool to
+render Go templates from the CLI. Installation instructions available
+[here](https://docs.gomplate.ca/installing/).
 
 After installing it, check a successful installation by running:
 
@@ -139,6 +140,24 @@ These modes can be combined (e.g. we can have remote, offline + builtin or
 local, online + unitxt). In this document we'll try to capture some examples of
 every combination.
 
+> NOTE: By default online mode and code execution are not allowed by the operator, even when specified in the LMEval Job CR.
+> 
+> To allow these modes follow the instructions below
+
+To allow online mode and code execution, first patch the TrustyAI operator `ConfigMap`:
+
+```sh {"interactive":"false","promptEnv":"never"}
+kubectl patch configmap trustyai-service-operator-config -n opendatahub \
+--type merge -p '{"data":{"lmes-allow-online":"true","lmes-allow-code-execution":"true"}}'
+
+```
+
+Then restart the TrustyAI operator with
+
+```sh {"interactive":"false","promptEnv":"never"}
+kubectl rollout restart deployment trustyai-service-operator-controller-manager -n opendatahub
+```
+
 ## Testing local mode (offline)
 
 > 💡 The following will always assume a namespace `test`.
@@ -156,34 +175,33 @@ of available models:
 
 ### Builtin tasks
 
-Create a PVC to hold the models and datasets.
+🚀 Create a PVC to hold the models and datasets.
 
 ```sh {"interactive":"false"}
 oc apply -f resources/pvc.yaml -n test
 ```
 
-Deploy a Pod that will copy the models and datasets to the PVC:
+🚀 Deploy a Pod that will copy the models and datasets to the PVC:
 
 ```sh {"interactive":"false"}
 oc apply -f resources/disconnected-flan-arceasy.yaml -n test
 ```
 
-Wait for the Pod to complete.
+⏱️ Wait for the Pod to complete.
 
-You can now deploy an LMEval CR like
+🚀 You can now deploy an LMEval CR with the following command (if you don't have
+GPU, use `GPU=false`):
 
-```sh
+```sh {"interactive":"false"}
 cat resources/cr-local-builtin.yaml | MODEL_NAME="/opt/app-root/src/hf_home/flan" TASK_NAME="arc_easy" GPU=true gomplate | \
 oc apply -n test -f -
 ```
 
-Once you're done with the LMEval job, you can delete everything so we can move
-to the next test.
+Once you're done with the LMEval job, you can delete the everything so we can
+move to the next test.
 
 ```sh
-oc delete lmevaljob lmeval-test -n test
-oc delete pod lmeval-downloader -n test
-oc delete pvc lmeval-data -n test
+kubectl delete all --selector=lmevaltests=vllm -n test
 ```
 
 ### unitxt
@@ -377,7 +395,8 @@ Once finished, this LMEval job can be deleted with
 
 > 👉 Delete any previous PVC for models and downloader pods.
 
-As with the other "offline" examples, start by creating the PVC and pods that populate that PVC. i.e.:
+As with the other "offline" examples, start by creating the PVC and pods that
+populate that PVC. i.e.:
 
 ```sh {"interactive":"false","promptEnv":"never"}
 oc apply -f resources/pvc.yaml -n test
@@ -550,7 +569,9 @@ spec:
               key: token
 ```
 
-If you want to an internal endpoint, first get the service's internal endpoint usin the `<MODEL_NAME>.<NAMESPACE>.svc.cluster.local` syntax, i.e., for the previous example:
+If you want to an internal endpoint, first get the service's internal endpoint
+usin the `<MODEL_NAME>.<NAMESPACE>.svc.cluster.local` syntax, i.e., for the
+previous example:
 
 ```sh {"interactive":"false","name":"MODEL_URL","promptEnv":"never"}
 export MODEL_URL="https://${MODEL_NAME}.test.svc.cluster.local" && \
@@ -615,15 +636,15 @@ spec:
               key: token
 ```
 
-Once you are done, you can delete LMEval Job with:
+🗑️ Once you are done, you can delete LMEval Job with:
 
 ```sh
 oc delete lmevaljob lmeval-test -n test
 ```
 
-Or delete all the above resources with:
+🗑️ Or delete all the above resources with:
 
-```sh
+```sh {"interactive":"false","promptEnv":"never"}
 kubectl delete all --selector=lmevaltests=vllm -n test
 ```
 
@@ -644,8 +665,8 @@ kubectl delete all --selector=lmevaltests=vllm -n test
 
 > 👉 Delete any previous PVC for models and downloader pods.
 
-To automate the installation of a vLLM model use the following command. This script takes the following env vars as
-configuration:
+To automate the installation of a vLLM model use the following command. This
+script takes the following env vars as configuration:
 
 - `MODEL_REPO`, this is a HuggingFace model repo of the model to deploy, e.g.
    `google/flan-t5-base`
@@ -1142,4 +1163,31 @@ to the next test.
 oc delete lmevaljob lmeval-test -n test
 oc delete pod lmeval-copy -n test
 oc delete pvc lmeval-data -n test
+```
+
+## Resource limits
+
+> To create resource limits for an LMEval Job use the following example from
+> [local model (online)]
+
+🚀 As an example, create the LMEval Job CR:
+
+```sh {"interactive":"false","promptEnv":"never"}
+cat resources/cr-local-builtin.yaml | MODEL_NAME="google/flan-t5-base" ONLINE=true TASK_NAME="arc_easy" GPU=true gomplate | \
+oc apply -n test -f -
+```
+
+🔎 By using the GPU mode, some CPU and memory limits are already set. You can
+simply run
+
+```sh {"interactive":"false","promptEnv":"never"}
+kubectl get pod lmeval-test -n test -o jsonpath="{.spec.containers[*].resources.limits}"
+```
+
+and verify the limits are set.
+
+⏱️ Once finished, this LMEval job can be deleted with
+
+```sh {"interactive":"false","promptEnv":"never"}
+oc delete lmevaljob lmeval-test -n test
 ```

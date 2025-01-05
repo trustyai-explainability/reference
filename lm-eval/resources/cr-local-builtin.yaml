@@ -5,6 +5,9 @@ apiVersion: trustyai.opendatahub.io/v1alpha1
 kind: LMEvalJob
 metadata:
   name: "lmeval-test"
+  labels:
+    opendatahub.io/dashboard: "true"
+    lmevaltests: "vllm"
 spec:
   {{- if $online }}
   allowOnline: true
