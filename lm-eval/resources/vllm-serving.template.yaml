@@ -1,14 +1,17 @@
+{{ $auth := env.Getenv "AUTH" "false" | conv.ToBool }}
 apiVersion: serving.kserve.io/v1beta1
 kind: InferenceService
 metadata:
-  name: "{{MODEL_NAME}}"
+  name: "{{ .Env.MODEL_NAME }}"
   namespace: "test"
   labels:
     opendatahub.io/dashboard: "true"
     lmevaltests: "vllm"
   annotations:
-    openshift.io/display-name: "{{MODEL_NAME}}"
-
+    openshift.io/display-name: "{{ .Env.MODEL_NAME }}"
+    {{- if $auth}}
+    security.opendatahub.io/enable-auth: 'true'
+    {{- end }}
     serving.knative.openshift.io/enablePassthrough: "true"
     sidecar.istio.io/inject: "true"
     sidecar.istio.io/rewriteAppHTTPProbers: "true"
@@ -32,7 +35,7 @@ spec:
       runtime: "vllm-runtime-phi-3"
       storage:
         key: "aws-connection-phi-3-data-connection"
-        path: "{{MODEL_NAME}}"
+        path: "{{ .Env.MODEL_NAME }}"
     tolerations:
       - effect: NoSchedule
         key: nvidia.com/gpu
