@@ -1,0 +1,142 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: vllm-models-claim
+spec:
+  accessModes:
+    - ReadWriteOnce
+  volumeMode: Filesystem
+  resources:
+    requests:
+      storage: 300Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: granite-detector-server
+  labels:
+    app: granite-detector-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: granite-detector-server
+  template:
+    metadata:
+      labels:
+        app: granite-detector-server
+      annotations:
+        prometheus.io/path: /metrics/
+        prometheus.io/port: '3000'
+        prometheus.io/scrape: 'true'
+    spec:
+      volumes:
+        - name: model-volume
+          persistentVolumeClaim:
+            claimName: vllm-models-claim
+        - name: shared-packages
+          emptyDir: {}
+      initContainers:
+        - name: download-model
+          image: quay.io/rgeada/llm_downloader:latest
+          command:
+            - bash
+            - -c
+            - |
+              model="ibm-granite/granite-guardian-3.1-2b"
+              echo "starting download"
+              /tmp/venv/bin/huggingface-cli download $model --local-dir /mnt/models/llms/$(basename $model)
+              echo "Done!"
+          volumeMounts:
+            - mountPath: "/mnt/models/"
+              name: model-volume
+        - name: vllm-guardrails-adapter
+          image: quay.io/rh-ee-mmisiura/vllm-detector-adapter:init_folder_v5
+          command:
+            - bash
+            - -c
+            - |
+              # Create the site-packages directory in the target Python path
+              SITE_PACKAGES="/shared_packages/lib/python3.12/site-packages"
+              echo "Creating directory: ${SITE_PACKAGES}"
+              mkdir -p ${SITE_PACKAGES}
+              
+              echo "Copying packages from source site-packages..."
+              cp -r /opt/app-root/lib/python3.12/site-packages/* ${SITE_PACKAGES}/
+              
+              echo "Copying vllm_detector_adapter..."
+              if [ -d "/build/vllm_detector_adapter" ]; then
+                cp -r /build/vllm_detector_adapter ${SITE_PACKAGES}/
+              fi
+              
+              echo "Contents of ${SITE_PACKAGES}:"
+              ls -la ${SITE_PACKAGES}
+          env:
+            - name: MODEL_NAME
+              value: ibm-granite/granite-guardian-3.1-2b
+          volumeMounts:
+            - name: shared-packages
+              mountPath: /shared_packages
+      containers:
+        - name: vllm-server
+          image: quay.io/opendatahub/vllm:fast-ibm-26564a0
+          resources:
+            limits:
+              cpu: '1'
+              memory: 12Gi
+              nvidia.com/gpu: '1'
+            requests:
+              cpu: '1'
+              memory: 12Gi
+              nvidia.com/gpu: '1'
+          env:
+            - name: MODEL_NAME
+              value: ibm-granite/granite-guardian-3.1-2b
+            - name: PORT
+              value: "3000"
+            - name: PYTHONPATH
+              value: /shared_packages/lib/python3.12/site-packages
+            - name: HF_HUB_OFFLINE
+              value: "0"
+            - name: HF_HOME
+              value: /mnt/models/llms
+          command:
+            - bash
+            - -c
+            - |
+              echo "Python version:"
+              python3 --version
+              echo "Current PYTHONPATH: $PYTHONPATH"
+              echo "Contents of site-packages directory:"
+              ls -la /shared_packages/lib/python3.12/site-packages
+              echo "Starting server..."
+              PYTHONPATH=/shared_packages/lib/python3.12/site-packages python3 -m vllm_detector_adapter.api_server \
+                --model ${MODEL_NAME} \
+                --model-type granite_guardian \
+                --dtype half \
+                --max-model-len 8192
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          volumeMounts:
+            - name: model-volume
+              mountPath: /mnt/models
+            - name: shared-packages
+              mountPath: /shared_packages
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: granite-detector-server
+  labels:
+    app: granite-detector-server
+spec:
+  ports:
+    - name: http
+      port: 3000
+      protocol: TCP
+      targetPort: 3000
+  selector:
+    app: granite-detector-server
+  type: ClusterIP
