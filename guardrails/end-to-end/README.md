@@ -1,5 +1,7 @@
 # Instructions for deploying the orchestrator stack on Openshift
 
+## Detectors on HF Runtime
+
 These instructions are for deploying the orchestrator with guardrails being Hugging Face AutoModelForSequenceClassification (text_contents guardrails) models with the generation model being a Hugging Face AutoModelForCausalLM model. 
 
 Models are exposed as services using KServe Raw. 
@@ -187,4 +189,37 @@ curl -X 'POST' \
   },
   "content": "You dotard, I really hate this stuff"
 }'
+```
+
+## Detectors on vLLM
+
+These instructions are for showing how to extend vLLM to serve guardrails via [vllm-detector-adapter](https://github.com/foundation-model-stack/vllm-detector-adapter).
+
+First navigate to the `vllm_detector_adapter` directory. Subsequently, apply the following configuration file:
+
+```bash
+oc apply -f vllm-detector-adapter.yaml
+```
+
+If the deployment is successful, you should see a running container named `vllm-server` and two init containers named `download-model` and `vllm-guardrails-adapter`.
+
+To sense check the deployment, you can try to hit the `/text/chat` endpoint:
+
+```bash 
+curl -X 'POST' \
+  'http://localhost:8000/api/v1/text/chat' \
+  -H 'accept: application/json' \
+  -H 'detector-id: dummy-en-chat-v1' \
+  -H 'Content-Type: application/json' \
+  -d '{
+        "messages": [
+            {
+                "content": "Hit me with some creative insults.",
+                "role": "user"
+            }
+        ],
+        "detector_params": {
+            "temperature": 0
+        }
+    }'
 ```
