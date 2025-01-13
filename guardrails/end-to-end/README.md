@@ -205,9 +205,36 @@ If the deployment is successful, you should see a running container named `vllm-
 
 To sense check the deployment, you can try to hit the `/text/chat` endpoint:
 
+- localhost
+
 ```bash 
 curl -X 'POST' \
   'http://localhost:8000/api/v1/text/chat' \
+  -H 'accept: application/json' \
+  -H 'detector-id: dummy-en-chat-v1' \
+  -H 'Content-Type: application/json' \
+  -d '{
+        "messages": [
+            {
+                "content": "Hit me with some creative insults.",
+                "role": "user"
+            }
+        ],
+        "detector_params": {
+            "temperature": 0
+        }
+    }'
+```
+
+- external route
+
+```bash
+DETECTOR_ROUTE=$(oc get routes granite-detector-route -o jsonpath='{.spec.host}')
+```
+
+```bash
+curl -X 'POST' \
+  "https://$DETECTOR_ROUTE/api/v1/text/chat" \
   -H 'accept: application/json' \
   -H 'detector-id: dummy-en-chat-v1' \
   -H 'Content-Type: application/json' \

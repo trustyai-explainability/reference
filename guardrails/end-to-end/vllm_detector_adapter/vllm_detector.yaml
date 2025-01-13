@@ -140,3 +140,19 @@ spec:
   selector:
     app: granite-detector-server
   type: ClusterIP
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: granite-detector-route
+  labels:
+    app: granite-detector-server
+spec:
+  to:
+    kind: Service
+    name: granite-detector-server
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+  wildcardPolicy: None
