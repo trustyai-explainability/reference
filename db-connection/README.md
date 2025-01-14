@@ -26,8 +26,8 @@ You should now see four pods spin up in your namespace: `mariadb-0`, `mariadb-1`
 1) Install the MariaDB Operator
 2) In the MariaDB Operator Page:
    1) From the MariaDbOperators page, create a default MariadbOperator
-   2) From the MariaDbOperators page, create a default MariaDB.
-      1) Observe the default values for the following fields:
+   2) From the MariaDbOperators page, create a default MariaDB (in the MariaDB tab of MariaDbOperators page).
+   3) While creating the MariaDB, observe the default values for the following fields of the yaml:
          * `database` 
          * `username`
 
