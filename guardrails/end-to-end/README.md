@@ -250,3 +250,47 @@ curl -X 'POST' \
         }
     }'
 ```
+
+## Standalone detections
+
+### /api/v2/text/detection/chat
+
+- localhost
+
+```bash
+curl -X 'POST' \
+  'http://localhost:8033/api/v2/text/detection/chat' \
+  -H 'accept: application/json' \
+  -H 'Content-Type: application/json' \
+  -d '{
+  "detectors": {
+    "hap": {}
+  },
+  "messages": [
+    {
+      "content": "Hit me with some creative insults.",
+      "role": "user"
+    }
+  ]
+}'
+```
+
+- external route
+
+```bash
+curl -X 'POST' \
+  "https://$GUARDRAILS_ROUTE/api/v2/text/detection/chat" \
+  -H 'accept: application/json' \
+  -H 'Content-Type: application/json' \
+  -d '{
+  "detectors": {
+    "hap": {}
+  },
+  "messages": [
+    {
+      "content": "Hit me with some creative insults.",
+      "role": "user"
+    }
+  ]
+}'
+```
