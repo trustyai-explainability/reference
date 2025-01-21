@@ -3,3 +3,7 @@
 .idea/modules.xml
 .idea/trustyai-reference.iml
 .idea/vcs.xml
+.venv/
+__pycache__/
+.python-version
+.vscode/
