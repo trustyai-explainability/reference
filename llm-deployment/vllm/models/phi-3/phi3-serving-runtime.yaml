@@ -1,10 +1,10 @@
 apiVersion: serving.kserve.io/v1alpha1
 kind: ServingRuntime
 metadata:
-  name: vllm-runtime-phi3
+  name: vllm-runtime-phi-3
   annotations:
-    openshift.io/display-name: vLLM ServingRuntime for KServe - Phi3
-    opendatahub.io/template-display-name: vLLM ServingRuntime for KServe - Phi3
+    openshift.io/display-name: vLLM ServingRuntime for KServe - Phi-3
+    opendatahub.io/template-display-name: vLLM ServingRuntime for KServe - Phi-3
     opendatahub.io/recommended-accelerators: '["nvidia.com/gpu"]'
   labels:
     opendatahub.io/dashboard: 'true'
@@ -12,7 +12,7 @@ spec:
   annotations:
     prometheus.io/path: /metrics
     prometheus.io/port: '8080'
-    openshift.io/display-name: vLLM ServingRuntime for KServe - Phi3
+    openshift.io/display-name: vLLM ServingRuntime for KServe - Phi-3
   labels:
     opendatahub.io/dashboard: 'true'
   containers:

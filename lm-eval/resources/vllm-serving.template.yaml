@@ -1,0 +1,42 @@
+{{ $auth := env.Getenv "AUTH" "false" | conv.ToBool }}
+apiVersion: serving.kserve.io/v1beta1
+kind: InferenceService
+metadata:
+  name: "{{ .Env.MODEL_NAME }}"
+  namespace: "test"
+  labels:
+    opendatahub.io/dashboard: "true"
+    lmevaltests: "vllm"
+  annotations:
+    openshift.io/display-name: "{{ .Env.MODEL_NAME }}"
+    {{- if $auth}}
+    security.opendatahub.io/enable-auth: 'true'
+    {{- end }}
+    serving.knative.openshift.io/enablePassthrough: "true"
+    sidecar.istio.io/inject: "true"
+    sidecar.istio.io/rewriteAppHTTPProbers: "true"
+spec:
+  predictor:
+    maxReplicas: 1
+    minReplicas: 1
+    model:
+      modelFormat:
+        name: vLLM
+      name: ""
+      resources:
+        limits:
+          cpu: "1"
+          memory: "8Gi"
+          nvidia.com/gpu: "1"
+        requests:
+          cpu: "1"
+          memory: "8Gi"
+          nvidia.com/gpu: "1"
+      runtime: "vllm-runtime-phi-3"
+      storage:
+        key: "aws-connection-phi-3-data-connection"
+        path: "{{ .Env.MODEL_NAME }}"
+    tolerations:
+      - effect: NoSchedule
+        key: nvidia.com/gpu
+        operator: Exists

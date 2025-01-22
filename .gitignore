@@ -1,2 +1,9 @@
 **/.DS_Store
 .idea
+
+.idea/.gitignore
+.idea/misc.xml
+.idea/modules.xml
+.idea/trustyai-reference.iml
+.idea/vcs.xml
+

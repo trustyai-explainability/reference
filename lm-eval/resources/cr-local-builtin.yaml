@@ -1,0 +1,48 @@
+{{ $code := env.Getenv "CODE" "false" | conv.ToBool }}
+{{ $online := env.Getenv "ONLINE" "false" | conv.ToBool }}
+{{ $gpu := env.Getenv "GPU" "false" | conv.ToBool }}
+apiVersion: trustyai.opendatahub.io/v1alpha1
+kind: LMEvalJob
+metadata:
+  name: "lmeval-test"
+  labels:
+    opendatahub.io/dashboard: "true"
+    lmevaltests: "vllm"
+spec:
+  {{- if $online }}
+  allowOnline: true
+  {{- end }}
+  {{- if $code }}
+  allowCodeExecution: true
+  {{- end }}
+  model: hf
+  modelArgs:
+    - name: pretrained
+      value: "{{.Env.MODEL_NAME}}"
+  taskList:
+    taskNames:
+      - "{{.Env.TASK_NAME}}"
+  logSamples: true
+  {{- if not $online }}
+  offline:
+    storage:
+      pvcName: "lmeval-data"
+  {{- end }}
+  pod:
+    container:
+      {{- if $gpu }}
+      resources:
+        limits:
+          cpu: '1'
+          memory: 8Gi
+          nvidia.com/gpu: '1'
+        requests:
+          cpu: '1'
+          memory: 8Gi
+          nvidia.com/gpu: '1'
+      {{- end }}
+      env:
+        - name: HF_HUB_VERBOSITY
+          value: "debug"
+        - name: UNITXT_DEFAULT_VERBOSITY
+          value: "debug"

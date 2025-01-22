@@ -1,0 +1,37 @@
+apiVersion: trustyai.opendatahub.io/v1alpha1
+kind: LMEvalJob
+metadata:
+  name: "lmeval-test"
+  namespace: "test"
+spec:
+  model: local-completions
+  modelArgs:
+    - name: model
+      value: "${MODEL_ID}"
+    - name: base_url
+      value: "${MODEL_URL}/v1/completions"
+    - name: num_concurrent
+      value: "1"
+    - name: max_retries
+      value: "3"
+    - name: tokenized_requests
+      value: "False"
+    - name: tokenizer
+      value: /opt/app-root/src/hf_home/flan
+  taskList:
+    taskRecipes:
+      - card:
+          name: "cards.20_newsgroups_short"
+        template: "templates.classification.multi_class.title"
+  logSamples: true
+  offline:
+    storage:
+      pvcName: "lmeval-data"
+  pod:
+    container:
+      env:
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: "${TOKEN_NAME}"
+              key: token

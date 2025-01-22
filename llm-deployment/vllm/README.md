@@ -73,7 +73,7 @@ oc apply -f ${MODEL_PATH}/*-isvc.yaml
 ```bash
 TOKEN=$(oc create token user-one)
 LLM_ROUTE=$(oc get $(oc get ksvc -o name | grep predictor) --template={{.status.url}})
-MODEL=$(curl -sk $LLM_ROUTE/v1/models -H "Authorization: Bearer ${TOKEN}" | jq ".data[0].root")
+MODEL=$(curl -sk $LLM_ROUTE/v1/models -H "Authorization: Bearer ${TOKEN}" | jq --raw-output ".data[0].root")
 echo $MODEL
 ```
 If this returns the name of your model (in this example, `phi-3`), proceed to the next step. Else, make sure that the model deployment has succesfully completed. You can verify this by looking in the `xyz-predictor` pod in your model namespace, and checking for the following log in the `kserve-container` conainer:
@@ -90,14 +90,14 @@ echo $(curl -ks $LLM_ROUTE/v1/chat/completions\
    -H "Authorization: Bearer ${TOKEN}" \
    -H "Content-Type: application/json" \
    -d "{
-   \"model\": \"${MODEL}\",
+   \"model\": \"$MODEL\",
    \"messages\": [{\"role\": \"user\", \"content\": \"${LLM_PROMPT}\"}],
    \"temperature\":0
-   }" | jq ".choices[0].text")
+   }" | jq ".choices[0].message.content")
 ```
 
 
-Should return:
+Should return something like:
 ```.
 Chatbot: Hello! I'm Phi, your AI assistant. How can I help you today?"
 ```
