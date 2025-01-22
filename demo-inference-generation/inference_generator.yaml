@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: loan-alpha-beta-inference-generator
+  labels:
+    app: loan-alpha-beta-inference-generator
+spec:
+  serviceAccountName: user-one
+  securityContext:
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+    - name: loan-alpha-beta-inference-generator
+      image: quay.io/rgeada/inference_generator:latest
+      ports:
+        - containerPort: 8080
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+            - ALL
