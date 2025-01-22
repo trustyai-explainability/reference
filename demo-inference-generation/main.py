@@ -44,6 +44,7 @@ for model in models:
     ).decode().replace("'", "")
     urls.append(base_route+"/v2/models/{}/versions/1/infer".format(model))
 
+token = subprocess.check_output(['oc', 'create', 'token', 'user-one']).decode().replace("'", "")
 
 if __name__ == '__main__':
     logging.basicConfig()
@@ -53,11 +54,13 @@ if __name__ == '__main__':
     logger.info("Using the following URL for model alpha:\n" + urls[0])
     logger.info("Using the following URL for model beta:\n" + urls[1])
 
+    headers = {"Authorization": "Bearer " + token}
+
     while True:
         rows = [generate_row() for _ in range(5)]
         json_payload = format_to_json(rows)
         for model_idx, url in enumerate(urls):
-            response = requests.post(url, json=json_payload)
+            response = requests.post(url, headers=headers, json=json_payload)
 
             if response.status_code == 200:
                 logger.info("✅ Posted {} payloads to {}".format(len(rows), models[model_idx]))
