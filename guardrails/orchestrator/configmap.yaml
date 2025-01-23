@@ -1,45 +1,6 @@
-kind: ConfigMap
 apiVersion: v1
+kind: ConfigMap
 metadata:
-  name: fms-orchestr8-config-nlp
-  namespace: guardrails-test-serverless
-  uid: 0b892cb2-6e05-4e7d-8abc-f23b401568df
-  resourceVersion: '29870777'
-  creationTimestamp: '2024-11-04T16:24:29Z'
-  labels:
-    app: fmstack-nlp
-    component: fms-orchestr8-nlp
-    deploy-name: fms-orchestr8-nlp
-  managedFields:
-    - manager: Mozilla
-      operation: Update
-      apiVersion: v1
-      time: '2024-11-05T18:46:43Z'
-      fieldsType: FieldsV1
-      fieldsV1:
-        'f:data':
-          .: {}
-          'f:config.yaml': {}
-        'f:metadata':
-          'f:labels':
-            .: {}
-            'f:app': {}
-            'f:component': {}
-            'f:deploy-name': {}
+  name: trustyai-service-operator-config
 data:
-  config.yaml: |
-    generation:
-      provider: nlp
-      service:
-        # hostname: gpt2-predictor.guardrails-test-serverless.svc.cluster.local
-        # port: 80
-    detectors:
-      regex:
-        type: text_contents
-        service:
-          hostname: regex-detector-predictor.guardrails-test-serverless.svc.cluster.local
-          port: 80
-        chunker_id: whole_doc_chunker
-        default_threshold: 0.5
-    passthrough_headers:
-      - Authorization
+  guardrailsOrchestratorImage: "quay.io/rh-ee-mmisiura/fms-orchestr8-nlp:0.7.0"

@@ -1,3 +1,6 @@
+**/.DS_Store
+.idea
+
 .idea/.gitignore
 .idea/misc.xml
 .idea/modules.xml
@@ -7,3 +10,4 @@
 __pycache__/
 .python-version
 .vscode/
+
