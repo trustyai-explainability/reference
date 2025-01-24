@@ -1,0 +1,200 @@
+#################################### Deployment Spec ####################################
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: fms-orchestr8-nlp
+  annotations:
+    configmap.reloader.stakater.com/reload: 'fms-orchestr8-config'
+  labels:
+    app: fmstack-nlp
+    component: fms-orchestr8-nlp
+    deploy-name: fms-orchestr8-nlp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fmstack-nlp
+      component: fms-orchestr8-nlp
+      deploy-name: fms-orchestr8-nlp
+  template:
+    metadata:
+      labels:
+        app: fmstack-nlp
+        component: fms-orchestr8-nlp
+        deploy-name: fms-orchestr8-nlp
+      annotations:
+        sidecar.istio.io/inject: "true"
+    spec:
+      serviceAccountName: user-one # Proper handling of the service account name
+      volumes:
+        - name: fms-orchestr8-config-nlp
+          configMap:
+            name: fms-orchestr8-config-nlp
+            defaultMode: 420
+      containers:
+        - resources:
+            limits:
+              cpu: '1'
+              memory: 2Gi
+            requests:
+              cpu: '1'
+              memory: 2Gi
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8034
+              scheme: HTTP
+            initialDelaySeconds: 10
+            timeoutSeconds: 10
+            periodSeconds: 20
+            successThreshold: 1
+            failureThreshold: 3
+          terminationMessagePath: /dev/termination-log
+          name: fms-orchestr8-nlp
+          command:
+            - /app/bin/fms-guardrails-orchestr8
+          env:
+            - name: ORCHESTRATOR_CONFIG
+              value: /config/config.yaml
+            - name: HTTP_PORT
+              value: '8033'
+            - name: RUST_BACKTRACE
+              value: 'full'
+            - name: RUST_LOG
+              value: 'fms_guardrails_orchestr8=trace,tower_grpc=debug'
+          securityContext:
+            capabilities:
+              drop:
+                - ALL
+            privileged: false
+            runAsNonRoot: true
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            seccompProfile:
+              type: RuntimeDefault
+          ports:
+            - name: http
+              containerPort: 8033
+              protocol: TCP
+          imagePullPolicy: Always
+          volumeMounts:
+            - name: fms-orchestr8-config-nlp
+              readOnly: true
+              mountPath: /config/config.yaml
+              subPath: config.yaml
+          terminationMessagePolicy: File
+          image: 'quay.io/rh-ee-mmisiura/fms-orchestr8-nlp:main_79434f2'
+
+#################################### Configmap ##########################################
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    app: fmstack-nlp
+    component: fms-orchestr8-nlp
+    deploy-name: fms-orchestr8-nlp
+  name: fms-orchestr8-config-nlp
+data:
+  config.yaml: |
+    generation:
+      provider: nlp
+      service:
+        hostname: llm-predictor.test.svc.cluster.local
+        port: 8085
+    detectors:
+      hap:
+        type: text_contents
+        service:
+          hostname: guardrails-detector-ibm-hap-predictor.test.svc.cluster.local
+          port: 8000
+          # hostname: guardrails-detector-ibm-hap-predictor-test.apps.rosa.trustyai-mac.bd9q.p3.openshiftapps.com
+          # port: 80
+        chunker_id: whole_doc_chunker
+        default_threshold: 0.5
+      # suicide:
+      #   type: text_contents
+      #   service:
+      #     hostname: guardrails-detector-vibhorag101-suicide-predictor.test.svc.cluster.local
+      #     port: 8000
+      #   chunker_id: whole_doc_chunker
+      #   default_threshold: 0.5
+      # pii: 
+      #   type: text_contents
+      #   service:  
+      #     hostname: guardrails-detector-deberta-finetuned-pii-predictor.test.svc.cluster.local
+      #     port: 8000
+      #   chunker_id: whole_doc_chunker
+      #   default_threshold: 0.5
+    # passthrough_headers:
+    #   - Authorization
+    #   - mm-model-id
+#################################### Service Spec #######################################
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: fms-orchestr8-nlp
+  labels:
+    app: fmstack-nlp
+    component: fms-orchestr8-nlp
+spec:
+  ipFamilies:
+    - IPv4
+  ports:
+    - name: http
+      protocol: TCP
+      port: 8033
+      targetPort: 8033
+    - name: health
+      protocol: TCP
+      port: 8034
+      targetPort: 8034
+  internalTrafficPolicy: Cluster
+  type: ClusterIP
+  ipFamilyPolicy: SingleStack
+  sessionAffinity: None
+  selector:
+    app: fmstack-nlp
+    component: fms-orchestr8-nlp
+    deploy-name: fms-orchestr8-nlp
+#################################### Route Spec #########################################
+---
+kind: Route
+apiVersion: route.openshift.io/v1
+metadata:
+  name: guardrails-nlp
+  labels:
+    app: fmstack-nlp
+    component: fms-orchestr8-nlp
+spec:
+  to:
+    kind: Service
+    name: fms-orchestr8-nlp
+    weight: 100
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+  wildcardPolicy: None
+---
+kind: Route
+apiVersion: route.openshift.io/v1
+metadata:
+  name: guardrails-nlp-health
+  labels:
+    app: fmstack-nlp
+    component: fms-orchestr8-nlp
+spec:
+  to:
+    kind: Service
+    name: fms-orchestr8-nlp
+    weight: 100
+  port:
+    targetPort: health
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+  wildcardPolicy: None
+---  
