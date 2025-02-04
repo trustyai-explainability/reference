@@ -1,6 +1,0 @@
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: trustyai-service-operator-config
-data:
-  guardrailsOrchestratorImage: "quay.io/rh-ee-mmisiura/fms-orchestr8-nlp:0.7.0"

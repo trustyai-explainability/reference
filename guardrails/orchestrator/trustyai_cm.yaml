@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: trustyai-service-operator-config
+data:
+  guardrailsOrchestratorImage: "quay.io/csantiago/orchestrator:latest"
+  regexDetectorImage: 'quay.io/csantiago/regex-detector:latest'
+  vllmGatewayImage: 'quay.io/csantiago/vllm-orchestrator-gateway:latest'
