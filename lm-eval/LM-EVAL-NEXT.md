@@ -141,7 +141,7 @@ local, online + unitxt). In this document we'll try to capture some examples of
 every combination.
 
 > NOTE: By default online mode and code execution are not allowed by the operator, even when specified in the LMEval Job CR.
-> 
+>
 > To allow these modes follow the instructions below
 
 To allow online mode and code execution, first patch the TrustyAI operator `ConfigMap`:
@@ -200,8 +200,9 @@ oc apply -n test -f -
 Once you're done with the LMEval job, you can delete the everything so we can
 move to the next test.
 
-```sh
+```sh {"interactive":"false","promptEnv":"never"}
 kubectl delete all --selector=lmevaltests=vllm -n test
+kubectl delete lmevaljob lmeval-test -n test
 ```
 
 ### unitxt
@@ -210,20 +211,24 @@ kubectl delete all --selector=lmevaltests=vllm -n test
 
 Create a PVC to hold the model and datasets.
 
-```sh {"interactive":"false"}
+```sh {"interactive":"false","promptEnv":"never"}
 oc apply -f resources/pvc.yaml -n test
 ```
 
 and the downloader pod:
 
-```sh {"interactive":"false"}
+```sh {"interactive":"false","promptEnv":"never"}
 oc apply -f resources/downloader-flan-20newsgroups.yaml -n test
+# OR
+# oc apply -f resources/disconnected-flan-glue.yaml -n test
 ```
 
 Once the copying has finished, you can deploy the `LMEvalJob` CR now with
 
 ```sh {"interactive":"false"}
-cat resources/cr-local-unitxt.yaml | MODEL_NAME="/opt/app-root/src/hf_home/flan" GPU=true gomplate | \
+cat resources/cr-local-unitxt.yaml | \
+MODEL_NAME="/opt/app-root/src/hf_home/flan" CARD="cards.20_newsgroups_short" TEMPLATE="templates.classification.multi_class.title" GPU=true \
+gomplate | \
 oc apply -n test -f -
 ```
 
@@ -311,7 +316,7 @@ Some combinations of models/tasks to try:
 
 As an example:
 
-```sh {"interactive":"false"}
+```sh {"interactive":"false","promptEnv":"never"}
 cat resources/cr-local-builtin.yaml | MODEL_NAME="google/flan-t5-base" ONLINE=true TASK_NAME="arc_easy" GPU=true gomplate | \
 oc apply -n test -f -
 ```
@@ -347,7 +352,7 @@ Some combinations of models/tasks to try:
 
 As an example:
 
-```sh
+```sh {"interactive":"false","promptEnv":"never"}
 MODEL_NAME="google/flan-t5-base" CARD="cards.20_newsgroups_short" \
 TEMPLATE="templates.classification.multi_class.title" GPU=true \
 ./resources/lmeval-job-local-online-unitxt.sh
@@ -355,7 +360,7 @@ TEMPLATE="templates.classification.multi_class.title" GPU=true \
 
 Once finished, this LMEval job can be deleted with
 
-```sh
+```sh {"interactive":"false","promptEnv":"never"}
 oc delete lmevaljob lmeval-test -n test
 ```
 
@@ -430,7 +435,7 @@ And the `MODEL_REPO`
 export MODEL_REPO="microsoft/Phi-3-mini-4k-instruct" && echo -n "${MODEL_REPO}"
 ```
 
-```sh
+```sh {"interactive":"false","promptEnv":"never"}
 cat resources/vllm-storage.template.yaml | \
 MODEL_NAME="$MODEL_NAME" MODEL_REPO="$MODEL_REPO" gomplate | \
 kubectl apply -n test -f -
@@ -439,7 +444,7 @@ kubectl apply -n test -f -
 Once the minio pod is running, deploy the inference service with (<u>make sure
 the name matches `MODEL_NAME` used above</u>). Without authentication:
 
-```sh
+```sh {"interactive":"false","promptEnv":"never"}
 # Without authentication
 cat resources/vllm-serving.template.yaml | \
 MODEL_NAME="$MODEL_NAME" AUTH="false" gomplate | \
@@ -458,14 +463,14 @@ kubectl apply -n test -f -
 Once vLLM is running, get the model's URL with (here we will assume
 `MODEL_NAME="phi-3`)
 
-```sh {"name":"MODEL_URL"}
+```sh {"interactive":"false","name":"MODEL_URL","promptEnv":"never"}
 export MODEL_URL=$(oc get isvc $MODEL_NAME -n test -o jsonpath='{.status.url}') && \
 echo -n ${MODEL_URL}
 ```
 
 Get the model's id with
 
-```sh {"name":"MODEL_ID"}
+```sh {"interactive":"false","name":"MODEL_ID","promptEnv":"never"}
 export MODEL_ID=$(curl -ks "${MODEL_URL}/v1/models" | jq -r '.data[0].id') && \
 echo -n ${MODEL_ID}
 ```
@@ -520,7 +525,7 @@ You get a response similar to
 
 We can now deploy the CR:
 
-```sh
+```sh {"interactive":"false","promptEnv":"never"}
 cat resources/vllm-cr.template.yaml | \
 TASK_NAME="arc_easy" MODEL_NAME="$MODEL_ID" \
 URL="$MODEL_URL" TOKENIZER_NAME="/opt/app-root/src/hf_home/flan" \
@@ -568,6 +573,8 @@ spec:
               name: "user-one-token-8ppxt" # replace with your Secret name
               key: token
 ```
+
+### Internal services
 
 If you want to an internal endpoint, first get the service's internal endpoint
 usin the `<MODEL_NAME>.<NAMESPACE>.svc.cluster.local` syntax, i.e., for the
@@ -786,7 +793,7 @@ We can now deploy the CR using a script that needs:
 
 Example:
 
-```sh
+```sh {"interactive":"false"}
 cat resources/vllm-cr.template.yaml | \
 TASK_NAME="arc_easy" MODEL_NAME="$MODEL_ID" URL="$MODEL_URL" \
 TOKENIZER_NAME="google/flan-t5-base" \
@@ -794,13 +801,13 @@ SECRET_NAME="$SECRET_NAME" gomplate | \
 kubectl apply -n test -f -
 ```
 
-Once you are done, you delete the LMEval with
+🗑️ Once you are done, you delete the LMEval with
 
 ```sh {"interactive":"false"}
 oc delete lmevaljob lmeval-test -n test
 ```
 
-If you want to delete all the vLLM resources also use
+🗑️ If you want to delete all the vLLM resources also use
 
 ```sh
 kubectl delete all --selector=lmevaltests=vllm -n test
@@ -809,6 +816,175 @@ kubectl delete all --selector=lmevaltests=vllm -n test
 ### Remote model, local dataset with unitxt catalog tasks
 
 > 👉 Delete any previous PVC for models and downloader pods.
+
+### Internal services
+
+If you want to an internal endpoint, first get the service's internal endpoint
+usin the `<MODEL_NAME>.<NAMESPACE>.svc.cluster.local` syntax, i.e., for the
+previous example:
+
+```sh {"interactive":"false","name":"MODEL_URL","promptEnv":"never"}
+export MODEL_URL="https://${MODEL_NAME}.test.svc.cluster.local" && \
+echo -n ${MODEL_URL}
+```
+
+The LMEval Job CR will be similar, with a couple of changes, namely:
+
+- The endpoint
+- Passing a CA cert location
+
+For this example the root CA included in the pod can used. e.g.
+
+```sh {"interactive":"false","promptEnv":"never"}
+cat resources/vllm-cr.template.yaml | \
+TASK_NAME="arc_easy" MODEL_NAME="$MODEL_ID" \
+URL="$MODEL_URL" TOKENIZER_NAME="google/flan-t5-base" \
+SECRET_NAME="$SECRET_NAME" OFFLINE="false" CERT="true" gomplate | \
+kubectl apply -n test -f -
+```
+
+This will generate a CR similar to:
+
+```yaml
+apiVersion: trustyai.opendatahub.io/v1alpha1
+kind: LMEvalJob
+metadata:
+  name: "lmeval-test"
+  namespace: "test"
+spec:
+  model: local-completions
+  taskList:
+    taskNames:
+      - "arc_easy"
+  logSamples: true
+  batchSize: "1"
+  modelArgs:
+    - name: model
+      value: "phi-3" # <- replace with your MODEL_ID
+    - name: base_url
+      value: "https://phi-3.test.svc.cluster.local/v1/completions" # <- replace with your MODEL_URL/v1/completions
+    - name: num_concurrent
+      value: "1"
+    - name: max_retries
+      value: "3"
+    - name: tokenized_requests
+      value: "False"
+    - name: tokenizer
+      value: "/opt/app-root/src/hf_home/granite"
+    - name: verify_certificate
+      value: "/var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt" # <- Add the root cert
+  offline:
+    storage:
+      pvcName: "lmeval-data"
+  pod:
+    container:
+      env:
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: "user-one-token-hm4gb" # replace with your Secret name
+              key: token
+```
+
+🗑️ Once you are done, you can delete LMEval Job with:
+
+```sh {"interactive":"false","promptEnv":"never"}
+oc delete lmevaljob lmeval-test -n test
+```
+
+🗑️ Or delete all the above resources with:
+
+```sh {"interactive":"false","promptEnv":"never"}
+kubectl delete all --selector=lmevaltests=vllm -n test
+```
+
+### KServe Raw
+
+In the previous example, we've used KServe Serverless. To use KServe Raw, first you would need to redeploy your `DataScienceCluster` in order to support KServe Raw.
+Once that's done, the steps would be similar to KServe Serverless, with some small changes.
+
+We start by setting the `MODEL_NAME`, as in the Serverless case:
+
+```sh {"interactive":"false","name":"MODEL_NAME","promptEnv":"never"}
+export MODEL_NAME="phi-3" && echo -n "${MODEL_NAME}"
+```
+
+And the `MODEL_REPO`
+
+```sh {"interactive":"false","name":"MODEL_REPO","promptEnv":"never"}
+export MODEL_REPO="microsoft/Phi-3-mini-4k-instruct" && echo -n "${MODEL_REPO}"
+```
+
+```sh {"interactive":"false","name":"","promptEnv":"never"}
+cat resources/vllm-storage.template.yaml | \
+MODEL_NAME="$MODEL_NAME" MODEL_REPO="$MODEL_REPO" gomplate | \
+kubectl apply -n test -f -
+```
+
+Once the minio pod is running, deploy the inference service with (<u>make sure
+the name matches `MODEL_NAME` used above</u>). Without authentication:
+
+```sh {"interactive":"false","promptEnv":"never"}
+# Without authentication
+cat resources/vllm-serving.template.yaml | \
+MODEL_NAME="$MODEL_NAME" AUTH="false" RAW="true" gomplate | \
+kubectl apply -n test -f -
+```
+
+Alternatively, **with** authentication:
+
+```sh {"interactive":"false","promptEnv":"never"}
+# With authentication
+cat resources/vllm-serving.template.yaml | \
+MODEL_NAME="$MODEL_NAME" AUTH="true" gomplate | \
+kubectl apply -n test -f -
+```
+
+Once vLLM is running, het the model's URL with (here we will assume
+`MODEL_NAME="phi-3`)
+
+```sh {"interactive":"false","mimeType":"text/plain","name":"MODEL_URL","promptEnv":"never","terminalRows":"1"}
+export MODEL_URL=$(oc get isvc ${MODEL_NAME} -n test -o jsonpath='{.status.address.url}' | cut -d'/' -f3)  && \
+echo -n ${MODEL_URL}
+```
+
+Get the model's token with
+
+```sh {"interactive":"false","mimeType":"text/plain","name":"SECRET_NAME","terminalRows":"1"}
+export SECRET_NAME=$(oc get secrets -n test -o custom-columns=NAME:.metadata.name | grep user-one-token) && \
+echo -n ${SECRET_NAME}
+```
+
+We can now deploy the CR using a script that needs:
+
+- `TASK_NAME`, the name of the builtin task to deploy
+- `MODEL_NAME`, the model's short name (eg `phi-3`)
+- `URL`, the vLLM's endpoint, e.g.
+   `https://phi-3-test.apps.<...>.openshiftapps.com`
+- `TOKENIZER_NAME`, the repo name of the tokenizer, e.g. `google/flan-t5-base`
+- `SECRET_NAME`, the name of the secret to use for authentication
+
+Example:
+
+```sh {"interactive":"false"}
+cat resources/vllm-cr.template.yaml | \
+TASK_NAME="arc_easy" MODEL_NAME="$MODEL_NAME" \
+MODEL_URL="http://${MODEL_URL}:8080" TOKENIZER_NAME="google/flan-t5-base" \
+SECRET_NAME="$SECRET_NAME" OFFLINE="false" CERT="true" gomplate | \
+kubectl apply -n test -f -
+```
+
+🗑️ Once you are done, you delete the LMEval with
+
+```sh {"interactive":"false"}
+oc delete lmevaljob lmeval-test -n test
+```
+
+🗑️ If you want to delete all the vLLM resources also use
+
+```sh {"interactive":"false","promptEnv":"never"}
+kubectl delete all --selector=lmevaltests=vllm -n test
+```
 
 ## Disconnected testing
 

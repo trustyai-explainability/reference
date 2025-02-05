@@ -5,6 +5,10 @@ apiVersion: trustyai.opendatahub.io/v1alpha1
 kind: LMEvalJob
 metadata:
   name: "lmeval-test"
+  namespace: "test"
+  labels:
+    opendatahub.io/dashboard: "true"
+    lmevaltests: "vllm"
 spec:
   {{- if $online }}
   allowOnline: true
@@ -19,8 +23,8 @@ spec:
   taskList:
     taskRecipes:
       - card:
-          name: "cards.20_newsgroups_short"
-        template: "templates.classification.multi_class.title"
+          name: "{{ .Env.CARD }}"
+        template: "{{ .Env.TEMPLATE }}"
   logSamples: true
   {{- if not $online }}
   offline:

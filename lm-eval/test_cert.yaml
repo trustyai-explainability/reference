@@ -1,0 +1,38 @@
+apiVersion: trustyai.opendatahub.io/v1alpha1
+kind: LMEvalJob
+metadata:
+  name: "lmeval-test"
+  namespace: "test"
+  labels:
+    lmevaltests: "vllm"
+spec:
+  allowOnline: true
+  model: local-completions
+  taskList:
+    taskNames:
+      - "arc_easy"
+  logSamples: true
+  batchSize: "1"
+  modelArgs:
+    - name: model
+      value: "phi-3"
+    - name: base_url
+      value: "https://phi-3.test.svc.cluster.local/v1/completions"
+    - name: num_concurrent
+      value: "1"
+    - name: max_retries
+      value: "3"
+    - name: tokenized_requests
+      value: "False"
+    - name: tokenizer
+      value: "google/flan-t5-base"
+    - name: verify_certificate
+      value: /var/run/secrets/kubernetes.io/serviceaccount/service-ca-foo.crt
+  pod:
+    container:
+      env:
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: "user-one-token-8ppxt"
+              key: token
