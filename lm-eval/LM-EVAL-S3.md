@@ -60,9 +60,6 @@ kind: PersistentVolumeClaim
 metadata:
     name: minio-pvc
     namespace: test
-    annotations:
-        "helm.sh/hook": pre-install
-        "helm.sh/hook-weight": "0"
 spec:
     accessModes:
         - ReadWriteOnce
@@ -75,9 +72,6 @@ kind: Deployment
 metadata:
     name: minio
     namespace: test
-    annotations:
-        "helm.sh/hook": pre-install
-        "helm.sh/hook-weight": "1"
 spec:
     replicas: 1
     selector:
