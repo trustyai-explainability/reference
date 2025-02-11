@@ -55,26 +55,19 @@ stringData:
 # (Optional) Configure DB TLS
 If you want to use a TLS connection between TrustyAI and the database, create a TrustyAI service database TLS secret that uses the same certificates that you want to use for the database.
 
-1) Create a YAML file to contain your TLS secret and add the following code:
+1) Enable TLS in the MariaDB instance by adding the following code to the YAML when creating the resource:
 ```yaml
-apiVersion: v1
-kind: Secret
-metadata:
-  name: <service_name>-db-tls
-type: kubernetes.io/tls
-data:
-  tls.crt: |
-    <TLS CERTIFICATE>
-
-  tls.key: |
-    <TLS KEY>
+spec:
+  tls:
+    enabled: true
+    required: true
 ```
-Save the file with the file name `<service_name>-db-tls.yaml`. For example, if your service name is trustyai-service, save the file as `trustyai-service-db-tls.yaml`.
-
-Apply the YAML file in the model namespace:
-
-`oc apply -f <service_name>-db-tls.yaml -n <project_name>`
-
+2) Once the MariaDB instance pods are `Running`, copy the `ca.cert` from the `mariadb-ca` secret that has been created in the same namespace to a new secret named `<service_name>-db-ca`. For example, if your service name is trustyai-service, name the secret `trustyai-service-db-ca`.
+You can do this by running the following commands:
+```bash
+oc get secret mariadb-ca -n $NAMESPACE -o jsonpath="{.data['ca\.crt']}" | base64 -d > ca.crt
+oc create secret generic trustyai-service-db-ca -n $NAMESPACE --from-file=ca.crt
+```
 
 # Deploying TrustyAI:
 `oc apply -f trustyai-cr.yaml`
