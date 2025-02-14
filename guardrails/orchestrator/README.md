@@ -40,9 +40,9 @@
     llm-predictor-5d54c877d5-8mvbm             1/1     Running    0         126m
     ```
 
-3. Deploy the TrustyAI Service configmap which contains the orchestrator, gateway, and regex detector images
+3. Deploy the guardrails configmap which contains the gateway and regex detector images
     ```
-    oc apply -f trustyai_cm.yaml -n $TEST_NS
+    oc apply -f gorch_cm.yaml -n $TEST_NS
     ```
 
 4. Deploy the orchestrator configmap to specify the generator, detector, and chunker services

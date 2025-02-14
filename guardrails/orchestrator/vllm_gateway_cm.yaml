@@ -8,7 +8,7 @@ data:
   config.yaml: |
     orchestrator:
       host: "localhost"
-      port: 8033
+      port: 8032
     detectors:
       - name: regex
         detector_params:
