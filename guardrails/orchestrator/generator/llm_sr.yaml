@@ -24,7 +24,7 @@ spec:
       env:
         - name: HF_HOME
           value: /tmp/hf_home
-      image: 'quay.io/rh-aiservices-bu/vllm-cpu-openai-ubi9:0.2'
+      image: 'quay.io/rh-aiservices-bu/vllm-cpu-openai-ubi9@sha256:d680ff8becb6bbaf83dfee7b2d9b8a2beb130db7fd5aa7f9a6d8286a58cebbfd'
       name: kserve-container
       ports:
         - containerPort: 8032

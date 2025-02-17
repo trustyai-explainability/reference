@@ -3,5 +3,5 @@ kind: ConfigMap
 metadata:
   name: guardrails-orchestrator-config
 data:
-  regexDetectorImage: 'quay.io/csantiago/regex-detector:latest'
-  vllmGatewayImage: 'quay.io/csantiago/vllm-orchestrator-gateway:latest'
+  regexDetectorImage: 'quay.io/csantiago/regex-detector@sha256:2dbfa4680938a97d0e0cac75049c43687ad163666cf2c6ddc37643c4f516d144'
+  vllmGatewayImage: 'quay.io/csantiago/vllm-orchestrator-gateway@sha256:493ac4679d50db9c2c59967dcaa6737a995cd19f319727f33c40f159db6817db'

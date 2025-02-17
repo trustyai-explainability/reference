@@ -47,7 +47,7 @@ spec:
             claimName: llm-models-claim
       initContainers:
         - name: download-model
-          image: quay.io/rh-ee-mmisiura/llm-downloader-bootstrap:latest
+          image: quay.io/rh-ee-mmisiura/llm-downloader-bootstrap@sha256:0034bebe904eabe40315463702275c6d33a0f22404a59b2c2d9e4d25a6cd750f
           securityContext:
             fsGroup: 1001
           command:
@@ -74,7 +74,7 @@ spec:
               value: THEACCESSKEY
             - name: MINIO_SECRET_KEY
               value: THESECRETKEY
-          image: quay.io/trustyai/modelmesh-minio-examples:latest
+          image: quay.io/trustyai/modelmesh-minio-examples@sha256:65cb22335574b89af15d7409f62feffcc52cc0e870e9419d63586f37706321a5
           name: minio-llm
           securityContext:
             allowPrivilegeEscalation: false
