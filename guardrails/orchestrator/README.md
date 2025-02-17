@@ -57,7 +57,7 @@
 
 6. Deploy the orchestrator custom resource. This will create a service account, deployment, service, and route object in your namespace.
     ```
-    oc apply -f orchestrator.yaml -n $TEST_NS
+    oc apply -f orchestrator_cr.yaml -n $TEST_NS
     ```
 
    Sanity check the readiness of the orchestrator pod:
@@ -77,7 +77,7 @@
 
     Run the following command to get inside the orchestrator container
     ```
-    export POD_NAME=gorch-test-55bf5f84d9-dd4vm
+    export POD_NAME=gorch-test-55bf5f84d9-dd4vm # Replace this with the name of your guardrails orchestrator pod
     export CONTAINER_NAME=gorch-test
     oc exec -it -n $TEST_NS $POD_NAME -c $CONTAINER_NAME -- /bin/bash
     ```
@@ -153,7 +153,7 @@
 
 8. Exit out of the orchestrator container. Run the following command to get inside the gateway container
     ```
-    export POD_NAME=gorch-test-55bf5f84d9-dd4vm
+    export POD_NAME=gorch-test-55bf5f84d9-dd4vm # Replace this with the name of your guardrails orchestrator pod
     export CONTAINER_NAME=gorch-test-gateway
     oc exec -it -n $TEST_NS $POD_NAME -c $CONTAINER_NAME -- /bin/bash
     ```
