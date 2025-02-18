@@ -40,9 +40,9 @@
     llm-predictor-5d54c877d5-8mvbm             1/1     Running    0         126m
     ```
 
-3. Deploy the guardrails configmap which contains the gateway and regex detector images
+3. Deploy the vLLM configmap which contains the gateway and regex detector images
     ```
-    oc apply -f gorch_cm.yaml -n $TEST_NS
+    oc apply -f vllm_images_cm.yaml -n $TEST_NS
     ```
 
 4. Deploy the orchestrator configmap to specify the generator, detector, and chunker services
@@ -52,7 +52,7 @@
 
 5. Deploy the vLLM gateway configmap to specify the detector arguments
     ```
-    oc apply -f vllm_gateway_cm.yaml -n $TEST_NS
+    oc apply -f detectors_cm.yaml -n $TEST_NS
     ```
 
 6. Deploy the orchestrator custom resource. This will create a service account, deployment, service, and route object in your namespace.
@@ -94,7 +94,7 @@
 
     **or**
     ```
-    curl -v http://$GORCH_ROUTE_HEALTH/health
+    curl -v https://$GORCH_ROUTE_HEALTH/health
     ```
 
 
@@ -126,7 +126,7 @@
 
       **or**
     ```
-    curl -v http://$GORCH_ROUTE_HEALTH/info
+    curl -v https://$GORCH_ROUTE_HEALTH/info
     ```
 
     Expected output:
