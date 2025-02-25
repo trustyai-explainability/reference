@@ -1,0 +1,12 @@
+apiVersion: trustyai.opendatahub.io/v1alpha1
+kind: GuardrailsOrchestrator
+metadata:
+  name: gorch-test
+spec:
+  orchestratorConfig: "fms-orchestr8-config-nlp"
+  vllmGatewayConfig: "fms-orchestr8-config-gateway"
+  replicas: 1
+  otelExporter:
+    protocol: "http"
+    otlpEndpoint: "localhost:4318"
+    otlpExport: "metrics"
