@@ -1,0 +1,59 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vllm-emulator # <--- change this
+labels:
+    app: vllm-emulator # <--- change this to match label on the pod
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vllm-emulator  # <--- change this to match label on the pod
+  template: # => from here down copy and paste the pods metadata: and spec: sections
+    metadata:
+      labels:
+        app: vllm-emulator
+        maistra.io/expose-route: 'true'
+      name: vllm-emulator
+    spec:
+      containers:
+        - image: 'quay.io/trustyai_testing/vllm_emulator@sha256:4214f31bff9de6cc723da23324fb8974cea8abadcab621d85a97a3503cabbdc6'
+          name: vllm-emulator
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vllm-emulator-service
+spec:
+  ports:
+    - name: vllm-emulator-endpoint
+      port: 8000
+      protocol: TCP
+      targetPort: 8000
+  selector:
+    app: vllm-emulator
+---
+kind: Route
+apiVersion: route.openshift.io/v1
+metadata:
+  name: vllm-emulator
+  labels: {}
+spec:
+  to:
+    kind: Service
+    name: vllm-emulator-service
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: ''
+    destinationCACertificate: ''
+  port:
+    targetPort: 8000
+  alternateBackends: []
