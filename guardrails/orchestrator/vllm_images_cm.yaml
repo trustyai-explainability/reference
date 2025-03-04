@@ -4,4 +4,4 @@ metadata:
   name: gorch-test-config
 data:
   regexDetectorImage: 'quay.io/csantiago/regex-detector@sha256:2dbfa4680938a97d0e0cac75049c43687ad163666cf2c6ddc37643c4f516d144'
-  vllmGatewayImage: 'quay.io/csantiago/vllm-orchestrator-gateway@sha256:493ac4679d50db9c2c59967dcaa6737a995cd19f319727f33c40f159db6817db'
+  vllmGatewayImage: 'quay.io/csantiago/vllm-orchestrator-gateway@sha256:f37ad653f461080c4ef5f4eb3358d67f9c547a3da4ad40a09fcfa493077a0b9f'
