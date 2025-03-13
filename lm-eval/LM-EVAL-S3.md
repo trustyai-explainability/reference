@@ -254,3 +254,61 @@ spec:
 
 The job should proceed successfully, with an indication at the start of the logs
 that the assets are being downloaded from S3.
+
+If a secure connection is required, a CA bundle can be passed to the CR with a reference to a Config Map.
+
+Let's assume your CA certificate is in a `ConfigMap` named `s3-ca-cert` in the `test` namespace, for instance a `ConfigMap` deployed with
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: s3-ca-cert
+  namespace: test
+  annotations:
+    service.beta.openshift.io/inject-cabundle: "true"
+data: {}
+```
+
+You would modify the LMEval CR above as:
+
+```yaml
+apiVersion: trustyai.opendatahub.io/v1alpha1
+kind: LMEvalJob
+metadata:
+    name: evaljob-sample
+spec:
+    allowOnline: false
+    model: hf
+    modelArgs:
+        - name: pretrained
+          value: /opt/app-root/src/hf_home/flan
+    taskList:
+        taskNames:
+            - arc_easy
+    logSamples: true
+    offline:
+        storage:
+            s3:
+                accessKeyId:
+                    name: s3-secret
+                    key: AWS_ACCESS_KEY_ID
+                secretAccessKey:
+                    name: s3-secret
+                    key: AWS_SECRET_ACCESS_KEY
+                bucket:
+                    name: s3-secret
+                    key: AWS_S3_BUCKET
+                endpoint:
+                    name: s3-secret
+                    key: AWS_S3_ENDPOINT
+                region:
+                    name: s3-secret
+                    key: AWS_DEFAULT_REGION
+                path: ""
+                verifySSL: true  # set to true
+                caBundle:
+                    name: s3-ca-cert  # name of config map
+                    key: service-ca.crt  # key in config map containing the CA bundle
+```
+
