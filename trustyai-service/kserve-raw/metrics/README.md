@@ -92,6 +92,14 @@ spec:
       managementState: Removed
 ```
 
+## Update Kserve config map
+
+Make sure to update the annotation in the KServe config map (inferenceservice-config) in opendatahub or redhat-ods-applications namespace based on the ODH/RHOAI builds
+
+```shell
+opendatahub.io/managed: "false"
+```
+
 ## Prepare TLS
 
 **Before** deploying the TrustyAI service or models, do the following:
