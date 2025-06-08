@@ -1,4 +1,9 @@
-1# LM-Eval For ODH-vLLM Models
+# LM-Eval For ODH-vLLM Models
+
+## Other guides
+
+- [Using S3 storage with LMEval](LM-EVAL-S3.md)
+- [LLM-as-a-Judge](LM-EVAL-LLMAAJ.md)
 
 ## Install ODH
 Until LMEval is merged onto main, you'll need to use a devflag to get access to LM-Eval. A DSC has been provided [here](dsc.yaml).
