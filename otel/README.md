@@ -1,5 +1,23 @@
 # Configuring the OpenTelemetry Collector
+This tutorial shows how to configure OpenTelemetry and Jaegar to gather insights on your application/service.
 
+## How OpenTelemetry and Jaegar Work Together
+**OpenTelemetry** - aims to provide APIs and SDKs in multiple languages to allow applications to export various telemetry data out of the process, to any number of metrics and tracing backends
+
+**Jaegar** - tracing backend that receives tracing telemetry data and provides processing, aggregation, data mining, and visualizations of that data
+
+This diagram depicts how telemetry data flows between your application, OpenTelemetry, Jaegar.
+
+![](imgs/otel-jaegar.png)
+
+## OpenTelemetry Collector Configuration Options
+The OpenTelemetry Collector consists of the following 5 components, each with their own set of configurable parameters:
+
+* Receivers - how data gets into the Collector
+* Processors - process the data before it is exported
+* Exporters - send data to one or more backends
+* Connectors - join pairs of pipelines
+* Extensions - optional components for tasks that do not involve processing telemetry data
 
 ## Pre-requisites
 
@@ -22,17 +40,17 @@
     name: my-jaeger
     spec: {}
     EOF
-    jaeger.jaegertracing.io/my-jaeger created
     ```
 
 3. Sanity check the Jaegar instance by checking the route:
     ```
     oc get routes my-jaeger
     ```
-    Open a new browser window and go to the route URL and login with your OpenShift credentials
+    Open a new browser window and go to the route URL and login with your OpenShift credentials. You should see the following UI:
 
+    ![](imgs/jaegar-ui.png)
 
-   Sanity check the list of Jaegar services:
+4. Sanity check the list of Jaegar services:
    ```
    oc get svc | grep jaegar
    ```
@@ -45,7 +63,7 @@
     my-jaegar-query                            ClusterIP      172.30.237.229   <none>                                                443/TCP,16685/TCP,16687/TCP                                          144m
    ```
 
-4. Create the OpenTelemetry Collector:
+5. Create the OpenTelemetry Collector:
 
    ```
     kind: OpenTelemetryCollector
@@ -56,33 +74,34 @@
     spec:
     config:
         exporters:
-        debug: {}
-        otlp:
-            # gRPC server serving on port 4317
-            endpoint: "my-jaegar-collector-headless.nemo-test.svc.cluster.local:4317"
-            # by default, this server does not use TLS
-            tls:
-                insecure: true
-                insecure_skip_verify: true
+            debug: {}
+            otlp:
+                # gRPC server serving on port 4317
+                endpoint: "my-jaegar-collector-headless.nemo-test.svc.cluster.local:4317"
+                # by default, this server does not use TLS
+                tls:
+                    insecure: true
+                    insecure_skip_verify: true
         receivers:
         otlp:
             protocols:
             grpc: {}
             http: {}
-        service:
-        pipelines:
-            traces:
-            exporters:
-                - debug
-                - otlp
-            receivers:
-                - otlp
+        service: <1>
+            pipelines:
+                traces:
+                exporters:
+                    - debug
+                    - otlp
+                receivers:
+                    - otlp
     mode: deployment
     resources: {}
     targetAllocator: {}
    ```
+    <1> If a component is configured but not defined in the service section, it will not be enabled
 
-5. Sanity check the OpenTelemetry Collector instance by checking the pods' logs
+6. Sanity check the OpenTelemetry Collector instance by checking the pods' logs
 
     (a) Retreive the OpenTelemetry pods:
 
@@ -104,3 +123,10 @@
     ...
     2025-07-31T13:17:05.411Z        info    service@v0.127.0/service.go:289 Everything is ready. Begin running and processing data. {"resource": {}}
     ```
+
+7. Once you verify that your Jaegar and OpenTelemetry instance are working as expected, you can add logic into your application to send telemetry data to the OpenTelemetry Collector.
+
+## References
+[1] [Using OpenTelemetry and Jaegar with Your Own Services/Application](https://github.com/rbaumgar/otelcol-demo-app/blob/main/OpenTelemetry.md)
+
+[2] [Red Hat Build of OpenTelemetry, Chapter 3. Configuring the Collector](https://docs.redhat.com/en/documentation/openshift_container_platform/4.15/html/red_hat_build_of_opentelemetry/configuring-the-collector#otel-configuration-of-otel-collector)
