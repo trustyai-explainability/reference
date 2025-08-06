@@ -1,0 +1,18 @@
+apiVersion: trustyai.opendatahub.io/v1alpha1
+kind: GuardrailsOrchestrator
+metadata:
+  name: gorch-otel
+  namespace: guardrails-test
+spec:
+  enableBuiltInDetectors: true
+  enableGuardrailsGateway: true
+  guardrailsGatewayConfig: fms-orchestr8-config-gateway
+  orchestratorConfig: fms-orchestr8-config-nlp
+  otelExporter:
+    otlMetricsEndpoint: 'http://fms-otel-collector-collector.guardrails-test.svc.cluster.local:4318'
+    otlpTracesEndpoint: 'http://my-jaeger-collector-headless.guardrails-test.svc.cluster.local:4317'
+    enableMetrics: true
+    enableTraces: true
+    metricsProtocol: http
+    tracesProtocol: grpc
+  replicas: 1
