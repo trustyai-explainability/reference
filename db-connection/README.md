@@ -81,7 +81,7 @@ Apply the YAML file in the model namespace:
 
 Notice in the CR, we refer to the `db-credentials` secret we created earlier:
 ```yaml
-apiVersion: trustyai.opendatahub.io/v1alpha1
+apiVersion: trustyai.opendatahub.io/v1
 kind: TrustyAIService
 metadata:
   name: trustyai-service
