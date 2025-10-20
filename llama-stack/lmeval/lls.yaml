@@ -1,0 +1,30 @@
+apiVersion: llamastack.io/v1alpha1
+kind: LlamaStackDistribution
+metadata:
+  name: lls-lmeval
+spec:
+  replicas: 1
+  server:
+    containerSpec:
+      env:
+        - name: VLLM_URL
+          value: ${VLLM_URL}
+        - name: INFERENCE_MODEL
+          value: ${INFERENCE_MODEL}
+        - name: VLLM_API_TOKEN
+          value: ${VLLM_API_TOKEN}
+        - name: VLLM_TLS_VERIFY
+          value: "false"
+        - name: MILVUS_DB_PATH
+          value: ~/.llama/milvus.db
+        - name: TRUSTYAI_LMEVAL_USE_K8S
+          value: 'true'
+        - name: TRUSTYAI_LM_EVAL_NAMESPACE
+          value: ${MODEL_NS}
+      name: llama-stack
+      port: 8321
+    distribution:
+      image: quay.io/rh-ee-mmisiura/lls:0.3.0
+      imagePullPolicy: Always
+    storage:
+      size: 20Gi
