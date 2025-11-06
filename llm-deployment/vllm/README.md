@@ -6,7 +6,7 @@
 ## Instructions to get GPU
 Copied from Lucas' notes [here.](https://docs.google.com/document/d/1T2oc-KZRMboUVuUSGDZnt3VRZ5s885aDRJGYGMkn_Wo/edit?usp=sharing)
 ### Get a GPU Worker Node
-1) Go to the Openshift cluster console
+1) Go to the Red Hat console - console.redhat.com 
 2) Under <your-cluster> -> Machine pools, click “Add machine pool”
 3) Add a name, and in “Compute node instance type” scroll all way down and search for `g4dn.xlarge`
 4) Click on Add machine pool
