@@ -1,0 +1,14 @@
+apiVersion: trustyai.opendatahub.io/v1alpha1
+kind: EvalHub
+metadata:
+  name: my-evalhub
+spec:
+  replicas: 1
+  env:
+    - name: LOG_LEVEL
+      value: DEBUG
+    - name: OPENAI_API_KEY
+      valueFrom:
+        secretKeyRef:
+          name: openai-secret
+          key: api-key
