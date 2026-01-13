@@ -175,23 +175,6 @@ curl -k -X DELETE \
   "https://$EVALHUB_ROUTE/api/v1/evaluations/jobs/$EVAL_ID"
 ```
 
-### Available LMEval Benchmarks
-
-The default LMEval provider supports these benchmarks:
-- `arc_challenge` - ARC (AI2 Reasoning Challenge)
-- `hellaswag` - HellaSwag commonsense reasoning
-- `mmlu` - Massive Multitask Language Understanding
-- `truthfulqa` - TruthfulQA factual accuracy
-
-### Common Configuration Options
-
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| `num_fewshot` | Number of few-shot examples | Provider default |
-| `batch_size` | Evaluation batch size | 8 |
-| `limit` | Maximum number of examples to evaluate | All |
-| `device` | Device to run on (cpu, cuda) | Auto-detect |
-
 ## Configuration
 
 ### Environment Variables
