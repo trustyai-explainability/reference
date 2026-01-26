@@ -1,0 +1,54 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: plugins-adapter-config
+  namespace: mcp-guardrails
+data:
+  nemo-config.yml: |
+    id: pii-tool-test
+    models:
+      - type: main
+        engine: openai
+        model: phi-3
+        parameters:
+          openai_base_url: http://phi3-predictor.mcp-guardrails.svc.cluster.local:8080/v1
+          api_key: "None"
+    # Disable embedding model (not needed for regex-based PII detection)
+    core:
+      embedding_search_provider:
+        name: simple
+        parameters: {}
+      enable_multi_step_generation: false
+    rails:
+      input:
+        flows:
+          - detect_pii_on_tool_input
+  config.yaml: |
+    plugins:
+      # - name: "ReplaceBadWordsPlugin"
+      #   kind: "contextforge-plugins-python.regex_filter.search_replace.SearchReplacePlugin"
+      #   description: "A plugin for finding and replacing words."
+      #   version: "0.1.0"
+      #   hooks: ["prompt_pre_fetch", "tool_pre_invoke", "tool_post_invoke"]
+      #   mode: "enforce"
+      #   priority: 150
+      #   config:
+      #     words:
+      #       - search: crap
+      #         replace: crud
+      - name: "NemoWrapperPlugin"
+        kind: "plugins.examples.nemo.nemo_wrapper_plugin.NemoWrapperPlugin"
+        description: "A simple Nemo PII detector"
+        version: "0.1.0"
+        hooks: ["tool_pre_invoke", "tool_post_invoke"]
+        mode: "enforce"
+        priority: 150
+        config:
+          foo: bar
+    plugin_dirs:
+      - "plugins/native"
+      - "plugins/examples/nemo"
+    plugin_settings:
+      parallel_execution_within_band: true
+      plugin_timeout: 30
+      fail_on_plugin_error: false
