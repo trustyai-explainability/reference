@@ -1,0 +1,16 @@
+define flow detect sensitive data on tool input
+  """Check if the tool input has any sensitive data."""
+  $has_sensitive_data = execute detect_sensitive_data(source="input", text=$tool_message)
+
+  if $has_sensitive_data
+    bot inform answer unknown
+    stop
+
+define flow check message length
+  $length_result = execute check_message_length
+  if $length_result == "blocked_too_long"
+    bot inform message too long
+    stop
+
+define bot inform message too long
+  Please keep your message under 100 words for better assistance."

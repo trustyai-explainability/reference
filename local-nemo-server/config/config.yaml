@@ -1,0 +1,30 @@
+rails:
+  config:
+    huggingface_detector:
+      models:
+        - model_repo: "ibm-granite/granite-guardian-hap-38m"
+          blocked_classes: [ 1 ]
+          descriptor: "hate speech"
+        - model_repo: "protectai/deberta-v3-base-prompt-injection-v2"
+          blocked_classes: [ "INJECTION" ]
+          descriptor: "prompt injection"
+    sensitive_data_detection:
+      input:
+        entities:
+          - PERSON
+          - EMAIL_ADDRESS
+          - PHONE_NUMBER
+          - CREDIT_CARD
+          - US_SSN
+          - IBAN_CODE
+  input:
+    flows:
+      - detect sensitive data on input
+      - huggingface detector check input $hf_model="ibm-granite/granite-guardian-hap-38m"
+      - huggingface detector check input $hf_model="protectai/deberta-v3-base-prompt-injection-v2"
+  tool_input: # these are guardrails on data coming *out* of a tool that will be LLM *input*, hence the confusing "tool_input" name
+    flows:
+      - check message length
+      - detect sensitive data on tool input
+      - huggingface detector check tool input $hf_model="ibm-granite/granite-guardian-hap-38m"
+      - huggingface detector check tool input $hf_model="protectai/deberta-v3-base-prompt-injection-v2"
