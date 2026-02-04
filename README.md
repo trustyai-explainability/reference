@@ -11,7 +11,9 @@ maintained. For an up-to-date reference source on TrustyAI, please see the [Trus
 ├── db-connection
 |    ├── db-credentials-secret.yaml
 │    └── mariadb-with-db-credentials.yaml
-|
+│
+├── eval-hub
+│
 ├── trustyai-service
 |     └── kserve-raw
 |          └── metrics
